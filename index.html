@@ -153,15 +153,23 @@
         }
 
         function viewRoute() {
-            const params = new URLSearchParams(window.location.search);
-            const locs = params.get('locs');
-            if (!locs) return alert("Route data unavailable.");
-            const stops = locs.split('|');
-            const origin = encodeURIComponent(stops[0]);
-            const dest = encodeURIComponent(stops[stops.length - 1]);
-            const waypoints = encodeURIComponent(stops.slice(1, -1).join('|'));
-            window.open(`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&waypoints=${waypoints}&travelmode=driving`, '_blank');
-        }
+    const params = new URLSearchParams(window.location.search);
+    const locs = params.get('locs');
+    if (!locs) return alert("Route data unavailable.");
+    
+    const stops = locs.split('|');
+    const origin = encodeURIComponent(stops[0]);
+    const dest = encodeURIComponent(stops[stops.length - 1]);
+    
+    // If there are more than 2 stops, add waypoints
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}`;
+    if (stops.length > 2) {
+        const waypoints = encodeURIComponent(stops.slice(1, -1).join('|'));
+        url += `&waypoints=${waypoints}`;
+    }
+    
+    window.open(url, '_blank');
+}
 
         function updateSigPreview() { document.getElementById('sig_name_preview').innerText = document.getElementById('typed_sig').value || "the signatory"; }
 
@@ -191,7 +199,7 @@
 
             if (!dEmail || !icn || !ice || !wo || locList.length < 2) return alert("All fields are required.");
 
-            const baseUrl = window.location.href.split('?')[0];
+            const baseUrl = window.location.origin + window.location.pathname;
             const link = `${baseUrl}?mode=sign&icn=${encodeURIComponent(icn)}&wo=${encodeURIComponent(wo)}&comp=${document.getElementById('comp').value}&mi=${document.getElementById('mileage_display').innerText}&de=${encodeURIComponent(dEmail)}&locs=${encodeURIComponent(locList.join('|'))}`;
             
             navigator.clipboard.writeText(link);
