@@ -14,32 +14,30 @@
         .form-card { border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
         #map { height: 300px; width: 100%; border-radius: 12px; border: 1px solid #e2e8f0; }
         label { color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.65rem; display: block; margin-bottom: 4px; }
-        input, textarea { border: 1px solid #e2e8f0; border-radius: 8px !important; padding: 10px; font-size: 14px; width: 100%; background: #ffffff; }
+        input, textarea, select { border: 1px solid #e2e8f0; border-radius: 8px !important; padding: 10px; font-size: 14px; width: 100%; background: #ffffff; }
         .signature-font { font-family: 'Dancing Script', cursive; font-size: 2.5rem; color: #1e293b; border-bottom: 2px solid #cbd5e1; background: transparent; width: 100%; }
+        .status-pill { transition: all 0.2s; cursor: pointer; border: 2px solid transparent; }
+        input[type="radio"]:checked + .status-pill { border-color: currentColor; transform: scale(1.05); ring: 2px; ring-offset: 2px; }
         @media print { .no-print { display: none !important; } }
     </style>
 </head>
 <body class="p-4 md:p-12">
 
-    <div id="captureArea" class="max-w-4xl mx-auto form-card bg-white border border-gray-100">
-        <div class="brand-blue p-8 text-white flex justify-between items-center no-print">
-            <div class="flex items-center gap-4">
+    <div id="captureArea" class="max-w-4xl mx-auto form-card bg-white border border-gray-100 text-slate-800">
+        <div class="brand-blue p-8 text-white flex justify-between items-center no-print text-white">
+            <div class="flex items-center gap-4 text-white">
                 <div class="bg-white/10 p-3 rounded-xl font-extrabold text-2xl border border-white/20 text-center w-14">TB</div>
                 <div>
                     <h1 class="text-2xl font-bold leading-tight">Work Order Dispatch</h1>
-                    <p class="text-slate-400 text-[10px] uppercase font-bold tracking-widest opacity-80">Certified Record of Authorization</p>
+                    <p class="text-slate-400 text-[10px] uppercase font-bold tracking-widest opacity-80 text-white">Certified Record of Authorization</p>
                 </div>
             </div>
         </div>
 
-        <form id="dispatchForm" class="p-8 space-y-8 text-slate-800">
+        <form id="dispatchForm" class="p-8 space-y-8">
             
             <div id="setupFields" class="space-y-6">
-                <div class="flex justify-between items-center border-b border-blue-100 pb-3">
-                    <h3 class="text-xs font-black text-blue-600 uppercase tracking-widest">1. Dispatch Configuration</h3>
-                    <span id="char_counter" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">URL Stability: Check</span>
-                </div>
-                
+                <h3 class="text-xs font-black text-blue-600 uppercase tracking-widest border-b border-blue-100 pb-3">1. Dispatch Configuration</h3>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div><label>Dispatcher Email</label><input type="email" id="d_email" placeholder="logistics@terraboost.com"></div>
                     <div><label>Contractor Name (IC)</label><input type="text" id="ic_name_setup" placeholder="Full Name"></div>
@@ -72,23 +70,37 @@
                     <div class="space-y-6">
                         <h3 class="text-sm font-black text-slate-800 uppercase border-b pb-2">Work Order Authorization</h3>
                         
-                        <button type="button" onclick="viewRoute()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl flex items-center justify-center gap-3 no-print transition-all">
-                            <span>🗺️</span>
-                            <span class="text-sm uppercase tracking-widest">View Optimized Route</span>
+                        <div class="flex gap-4 no-print">
+                            <label class="flex-1">
+                                <input type="radio" name="status" value="Accepted" class="hidden" onchange="toggleDecision('Accepted')" checked>
+                                <div class="status-pill bg-emerald-50 text-emerald-700 border-emerald-200 p-4 rounded-xl text-center font-bold text-xs uppercase tracking-widest ring-emerald-500">Accept Task</div>
+                            </label>
+                            <label class="flex-1">
+                                <input type="radio" name="status" value="Declined" class="hidden" onchange="toggleDecision('Declined')">
+                                <div class="status-pill bg-red-50 text-red-700 border-red-200 p-4 rounded-xl text-center font-bold text-xs uppercase tracking-widest ring-red-500">Decline Task</div>
+                            </label>
+                        </div>
+
+                        <button type="button" onclick="viewRoute()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-4 rounded-xl text-[10px] uppercase tracking-widest no-print">
+                            View Optimized Route
                         </button>
 
                         <div id="summaryZone" class="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-3 text-sm text-slate-700"></div>
-                        
-                        <div class="p-4 bg-amber-50 rounded-xl border border-amber-100 text-[11px] text-amber-900 font-medium">
-                            <strong>Legal Authorization:</strong> By signing below, you formally accept this work order and associated compensation.
-                        </div>
                     </div>
 
                     <div class="space-y-6">
-                        <div><label class="text-blue-600 font-black">Electronic Signature</label><input type="text" id="typed_sig" oninput="updateSigPreview()" placeholder="Full Legal Name" class="signature-font border-none focus:ring-0"></div>
-                        <div class="flex items-start gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200"><input type="checkbox" id="legal_consent" class="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 cursor-pointer"><label for="legal_consent" class="normal-case font-medium text-[11px] text-slate-600 leading-tight cursor-pointer italic">I certify that I have reviewed the work order and authorize this task.</label></div>
-                        <div class="text-right border-t pt-4"><label>Execution Date</label><span id="dateDisplay" class="font-bold text-slate-800 text-sm"></span></div>
-                        <button type="button" id="submitBtn" onclick="submitAuthorization()" class="w-full bg-blue-600 text-white font-bold py-5 rounded-xl shadow-lg text-xs uppercase tracking-widest">Confirm & Secure Record</button>
+                        <div id="acceptFields" class="space-y-6">
+                            <div><label class="text-blue-600 font-black">Electronic Signature</label><input type="text" id="typed_sig" oninput="updateSigPreview()" placeholder="Full Legal Name" class="signature-font border-none focus:ring-0"></div>
+                            <div class="flex items-start gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200"><input type="checkbox" id="legal_consent" class="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 cursor-pointer"><label for="legal_consent" class="normal-case font-medium text-[11px] text-slate-600 leading-tight cursor-pointer italic">I certify that I have reviewed the work order and authorize this task.</label></div>
+                        </div>
+
+                        <div id="declineFields" class="hidden space-y-4">
+                            <label class="text-red-600 font-black">Reason for Denial</label>
+                            <textarea id="decline_reason" rows="4" placeholder="Please specify why you are declining (e.g., schedule conflict, rate counter-offer)..."></textarea>
+                        </div>
+
+                        <div class="text-right border-t pt-4"><label>Action Date</label><span id="dateDisplay" class="font-bold text-slate-800 text-sm"></span></div>
+                        <button type="button" id="submitBtn" onclick="submitAuthorization()" class="w-full bg-blue-600 text-white font-bold py-5 rounded-xl shadow-lg text-xs uppercase tracking-widest transition-colors">Submit Decision</button>
                     </div>
                 </div>
             </div>
@@ -98,10 +110,10 @@
                 <div class="grid grid-cols-2 gap-4"><div><p id="audit_id"></p><p id="audit_ts"></p></div><div class="text-right"><p id="audit_ua"></p></div></div>
             </div>
 
-            <div id="successView" class="hidden text-center py-12 space-y-4 text-slate-800">
-                <div class="text-6xl">✅</div>
-                <h2 class="text-2xl font-bold uppercase tracking-tight">Verification Recorded</h2>
-                <p class="text-slate-500">Dispatch notified. PDF generated.</p>
+            <div id="successView" class="hidden text-center py-12 space-y-4">
+                <div class="text-6xl text-slate-800">✅</div>
+                <h2 class="text-2xl font-bold uppercase tracking-tight">Response Recorded</h2>
+                <p id="success_msg" class="text-slate-500">The dispatcher has been notified of your decision.</p>
             </div>
         </form>
     </div>
@@ -131,6 +143,18 @@
             });
         }
 
+        function toggleDecision(choice) {
+            if (choice === 'Accepted') {
+                document.getElementById('acceptFields').classList.remove('hidden');
+                document.getElementById('declineFields').classList.add('hidden');
+                document.getElementById('submitBtn').classList.replace('bg-red-600', 'bg-blue-600');
+            } else {
+                document.getElementById('acceptFields').classList.add('hidden');
+                document.getElementById('declineFields').classList.remove('hidden');
+                document.getElementById('submitBtn').classList.replace('bg-blue-600', 'bg-red-600');
+            }
+        }
+
         function generateCertifiedLink() {
             const d = {
                 de: document.getElementById('d_email').value,
@@ -143,12 +167,12 @@
             };
             if (!d.de || !d.icn || !d.wo) return alert("Required fields missing.");
 
-            // BASE64 ENCODING FOR GITHUB STABILITY
+            // BASE64 ENCODING FOR STABILITY
             const payload = btoa(unescape(encodeURIComponent(JSON.stringify(d))));
             const link = `${window.location.origin}${window.location.pathname}?data=${payload}`;
             
             navigator.clipboard.writeText(link);
-            window.location.href = `mailto:${d.ice}?subject=Action Required: WO#${d.wo}&body=Authorize here: ${link}`;
+            window.location.href = `mailto:${d.ice}?subject=Action Required: WO#${d.wo}&body=Review and respond here: ${link}`;
             alert("Certified Link Copied!");
         }
 
@@ -164,23 +188,17 @@
                     document.getElementById('dateDisplay').innerText = new Date().toLocaleDateString();
                     document.getElementById('summaryZone').innerHTML = `
                         <div class="flex justify-between"><strong>Contractor:</strong> <span>${d.icn}</span></div>
-                        <div class="flex justify-between"><strong>Work Order #:</strong> <span class="text-blue-600 font-bold">${d.wo}</span></div>
-                        <div class="flex justify-between border-t pt-2 mt-2"><strong>Mileage:</strong> <span>${d.mi} Miles</span></div>
-                        <div class="flex justify-between"><strong>Compensation:</strong> <span class="text-emerald-600 font-black">$${d.comp}</span></div>
+                        <div class="flex justify-between text-blue-600"><strong>Work Order #:</strong> <span class="font-bold">${d.wo}</span></div>
+                        <div class="flex justify-between"><strong>Mileage:</strong> <span>${d.mi} Miles</span></div>
+                        <div class="flex justify-between border-t pt-2 mt-2"><strong>Compensation:</strong> <span class="text-emerald-600 font-black">$${d.comp}</span></div>
                     `;
-                    // Global storage for the map button
-                    window.icLocs = d.locs;
-                    window.dispatchEmail = d.de;
-                    window.woNum = d.wo;
-                    window.icName = d.icn;
-                    window.icComp = d.comp;
-                    window.icMi = d.mi;
-                } catch(e) { console.error("Data error"); }
+                    window.payloadData = d;
+                } catch(e) { console.error("Data decode error"); }
             }
         };
 
         function viewRoute() {
-            const stops = window.icLocs.split('|');
+            const stops = window.payloadData.locs.split('|');
             const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(stops[0])}&destination=${encodeURIComponent(stops[stops.length-1])}&waypoints=${encodeURIComponent(stops.slice(1,-1).join('|'))}&travelmode=driving`;
             window.open(url, '_blank');
         }
@@ -188,13 +206,18 @@
         function updateSigPreview() { document.getElementById('sig_name_preview').innerText = document.getElementById('typed_sig').value || "the signatory"; }
 
         async function submitAuthorization() {
+            const status = document.querySelector('input[name="status"]:checked').value;
             const name = document.getElementById('typed_sig').value;
-            if (!name || !document.getElementById('legal_consent').checked) return alert("Sign and consent required.");
+            const reason = document.getElementById('decline_reason').value;
+
+            if (status === 'Accepted' && (!name || !document.getElementById('legal_consent').checked)) return alert("Review and signature required to accept.");
+            if (status === 'Declined' && !reason) return alert("Please provide a reason for declining.");
+
             const btn = document.getElementById('submitBtn');
-            btn.disabled = true; btn.innerText = "Securing...";
+            btn.disabled = true; btn.innerText = "Processing...";
 
             const ts = new Date().toISOString();
-            const txID = `CERT-${window.woNum}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+            const txID = `CERT-${window.payloadData.wo}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
 
             document.getElementById('auditTrail').classList.remove('hidden');
             document.getElementById('audit_id').innerText = `ID: ${txID}`;
@@ -202,18 +225,34 @@
             document.getElementById('audit_ua').innerText = `ENV: ${navigator.userAgent.substring(0, 40)}`;
 
             const formData = new FormData();
-            formData.append('Work Order', window.woNum);
-            formData.append('Contractor', window.icName);
-            formData.append('Signatory', name);
+            // FORM SPREE SUBJECT LINE
+            formData.append('_subject', `WO ${window.payloadData.wo} ${status.toUpperCase()}`);
+            
+            formData.append('Decision Status', status);
+            formData.append('Work Order', window.payloadData.wo);
+            formData.append('Contractor', window.payloadData.icn);
+            
+            if (status === 'Accepted') {
+                formData.append('Signatory', name);
+                formData.append('Compensation', window.payloadData.comp);
+            } else {
+                formData.append('Reason for Denial', reason);
+            }
+            
             formData.append('Verification ID', txID);
-            formData.append('_replyto', window.dispatchEmail);
+            formData.append('_replyto', window.payloadData.de);
 
             try {
                 await fetch('https://formspree.io/f/meerlqll', { method: 'POST', body: formData, headers: {'Accept': 'application/json'} });
-                await html2pdf().set({ margin: 0.5, filename: `WO_CERT_${window.woNum}.pdf`, jsPDF: { format: 'letter' } }).from(document.getElementById('captureArea')).save();
+                
+                if (status === 'Accepted') {
+                    await html2pdf().set({ margin: 0.5, filename: `WO_CERT_${window.payloadData.wo}.pdf`, jsPDF: { format: 'letter' } }).from(document.getElementById('captureArea')).save();
+                }
+                
                 document.getElementById('icMode').style.display = 'none';
                 document.getElementById('successView').classList.remove('hidden');
-            } catch (e) { btn.disabled = false; alert("Error"); }
+                if (status === 'Declined') document.getElementById('success_msg').innerText = "Dispatcher notified of your denial.";
+            } catch (e) { btn.disabled = false; alert("Submission failed."); }
         }
     </script>
 </body>
