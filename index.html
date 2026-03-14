@@ -22,10 +22,10 @@
 <body class="p-4 md:p-12">
 
     <div id="captureArea" class="max-w-4xl mx-auto form-card bg-white border border-gray-100">
-        <div class="brand-blue p-8 text-white flex justify-between items-center no-print text-white">
-            <div class="flex items-center gap-4 text-white">
+        <div class="brand-blue p-8 text-white flex justify-between items-center no-print">
+            <div class="flex items-center gap-4">
                 <div class="bg-white/10 p-3 rounded-xl font-extrabold text-2xl border border-white/20 text-center w-14">TB</div>
-                <div class="text-white">
+                <div>
                     <h1 class="text-2xl font-bold leading-tight text-white">Work Order Dispatch</h1>
                     <p class="text-slate-400 text-[10px] uppercase font-bold tracking-widest opacity-80 text-white">Certified Record of Authorization</p>
                 </div>
@@ -35,21 +35,24 @@
         <form id="dispatchForm" class="p-8 space-y-8 text-slate-800">
             
             <div id="setupFields" class="space-y-6">
-                <h3 class="text-xs font-black text-blue-600 uppercase tracking-widest border-b border-blue-100 pb-3">1. Dispatch Configuration</h3>
+                <div class="flex justify-between items-center border-b border-blue-100 pb-3">
+                    <h3 class="text-xs font-black text-blue-600 uppercase tracking-widest">1. Dispatch Configuration</h3>
+                    <span id="char_counter" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Link Size: 0 / 2000</span>
+                </div>
+                
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div><label>Dispatcher Email</label><input type="email" id="d_email" placeholder="logistics@terraboost.com"></div>
-                    <div><label>Contractor Name (IC)</label><input type="text" id="ic_name_setup" placeholder="Full Name"></div>
+                    <div><label>Dispatcher Email</label><input type="email" id="d_email" placeholder="logistics@terraboost.com" oninput="updateCharCount()"></div>
+                    <div><label>Contractor Name (IC)</label><input type="text" id="ic_name_setup" placeholder="Full Name" oninput="updateCharCount()"></div>
                     <div><label>Contractor Email</label><input type="email" id="ic_email_setup" placeholder="worker@email.com"></div>
-                    <div><label>Work Order #</label><input type="text" id="task_num" placeholder="WO-0000"></div>
-                    <div><label>Compensation ($)</label><input type="number" id="comp" placeholder="0.00"></div>
+                    <div><label>Work Order #</label><input type="text" id="task_num" placeholder="WO-0000" oninput="updateCharCount()"></div>
+                    <div><label>Compensation ($)</label><input type="number" id="comp" placeholder="0.00" oninput="updateCharCount()"></div>
                     <div><label>Due Date</label><input type="date" id="due_date"></div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                     <div class="space-y-4">
                         <label class="text-blue-600 font-black">Route Locations (One per line)</label>
-                        <textarea id="locations" rows="6" placeholder="1. Start Address
-2. End Address"></textarea>
+                        <textarea id="locations" rows="6" placeholder="1. Start Address&#10;2. End Address" oninput="calculateRoute(); updateCharCount();"></textarea>
                         
                         <div class="bg-slate-900 rounded-2xl p-6 text-white flex justify-between items-center shadow-xl">
                             <div><p class="text-slate-400 text-[10px] uppercase font-black tracking-widest">Mileage</p><span id="mileage_display" class="text-3xl font-black text-emerald-400">0.0</span></div>
@@ -152,24 +155,42 @@
             });
         }
 
+        function updateCharCount() {
+            const baseUrl = window.location.origin + window.location.pathname;
+            const icn = document.getElementById('ic_name_setup').value;
+            const wo = document.getElementById('task_num').value;
+            const locList = document.getElementById('locations').value.split('\n').filter(l => l.trim().length > 5);
+            const locString = locList.join('|');
+            
+            // Simulating URL construction length
+            const estimatedLength = baseUrl.length + encodeURIComponent(icn).length + encodeURIComponent(wo).length + encodeURIComponent(locString).length + 150;
+            
+            const counter = document.getElementById('char_counter');
+            counter.innerText = `Link Size: ${estimatedLength} / 2000`;
+            
+            if (estimatedLength > 2000) {
+                counter.classList.replace('text-slate-400', 'text-red-500');
+            } else {
+                counter.classList.replace('text-red-500', 'text-slate-400');
+            }
+        }
+
         function viewRoute() {
-    const params = new URLSearchParams(window.location.search);
-    const locs = params.get('locs');
-    if (!locs) return alert("Route data unavailable.");
-    
-    const stops = locs.split('|');
-    const origin = encodeURIComponent(stops[0]);
-    const dest = encodeURIComponent(stops[stops.length - 1]);
-    
-    // If there are more than 2 stops, add waypoints
-    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}`;
-    if (stops.length > 2) {
-        const waypoints = encodeURIComponent(stops.slice(1, -1).join('|'));
-        url += `&waypoints=${waypoints}`;
-    }
-    
-    window.open(url, '_blank');
-}
+            const params = new URLSearchParams(window.location.search);
+            const locs = params.get('locs');
+            if (!locs) return alert("Route data unavailable.");
+            
+            const stops = locs.split('|');
+            const origin = encodeURIComponent(stops[0]);
+            const dest = encodeURIComponent(stops[stops.length - 1]);
+            
+            let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}`;
+            if (stops.length > 2) {
+                const waypoints = encodeURIComponent(stops.slice(1, -1).join('|'));
+                url += `&waypoints=${waypoints}`;
+            }
+            window.open(url, '_blank');
+        }
 
         function updateSigPreview() { document.getElementById('sig_name_preview').innerText = document.getElementById('typed_sig').value || "the signatory"; }
 
@@ -177,7 +198,8 @@
             initMap();
             const params = new URLSearchParams(window.location.search);
             if (params.get('mode') === 'sign') {
-                document.getElementById('setupFields').remove();
+                const setup = document.getElementById('setupFields');
+                if(setup) setup.remove();
                 document.getElementById('icMode').classList.remove('hidden');
                 document.getElementById('dateDisplay').innerText = new Date().toLocaleDateString();
                 
@@ -202,6 +224,10 @@
             const baseUrl = window.location.origin + window.location.pathname;
             const link = `${baseUrl}?mode=sign&icn=${encodeURIComponent(icn)}&wo=${encodeURIComponent(wo)}&comp=${document.getElementById('comp').value}&mi=${document.getElementById('mileage_display').innerText}&de=${encodeURIComponent(dEmail)}&locs=${encodeURIComponent(locList.join('|'))}`;
             
+            if (link.length > 2000) {
+                alert("WARNING: The link is very long and may be cut off by email clients. Try shortening address details.");
+            }
+
             navigator.clipboard.writeText(link);
             window.location.href = `mailto:${ice}?subject=Action Required: Work Order Verification WO#${wo}&body=Please review and authorize your dispatch here: ${link}`;
             alert("Verification Link Copied!");
@@ -219,7 +245,6 @@
             const ts = new Date().toISOString();
             const txID = `CERT-${params.get('wo')}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
 
-            // Reveal audit trail for PDF capture
             const audit = document.getElementById('auditTrail');
             audit.classList.remove('hidden');
             document.getElementById('audit_id').innerText = `ID: ${txID}`;
@@ -234,21 +259,18 @@
             formData.append('_replyto', params.get('de'));
 
             try {
-                // Send data to Formspree
                 await fetch('https://formspree.io/f/meerlqll', { 
                     method: 'POST', 
                     body: formData, 
                     headers: {'Accept': 'application/json'} 
                 });
 
-                // Generate and save PDF
                 await html2pdf().set({ 
                     margin: 0.5, 
                     filename: `WO_CERT_${params.get('wo')}.pdf`, 
                     jsPDF: { format: 'letter' } 
                 }).from(document.getElementById('captureArea')).save();
 
-                // Clear UI only after success
                 document.getElementById('icMode').style.display = 'none';
                 document.getElementById('successView').classList.remove('hidden');
             } catch (e) { 
