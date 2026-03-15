@@ -30,8 +30,8 @@
                     <div class="bg-slate-900 text-white font-black text-3xl px-4 py-2 rounded">TBM</div>
                 </div>
                 <div>
-                    <h1 class="text-3xl font-extrabold tracking-tight text-white">Terraboost Media</h1>
-                    <p class="text-blue-400 text-xs uppercase font-black tracking-[0.2em] opacity-90 text-white">Logistics & Route Authorization Portal</p>
+                    <h1 class="text-3xl font-extrabold tracking-tight">Terraboost Media</h1>
+                    <p class="text-blue-400 text-xs uppercase font-black tracking-[0.2em] opacity-90">Logistics & Route Authorization Portal</p>
                 </div>
             </div>
         </div>
@@ -130,7 +130,7 @@
             <div id="successView" class="hidden text-center py-20 space-y-6">
                 <div class="text-6xl">✅</div>
                 <h2 class="text-3xl font-black uppercase text-slate-900 tracking-tight">Response Recorded</h2>
-                <p class="text-slate-500">The TBM logistics team has been updated. Certified record generated.</p>
+                <p class="text-slate-500">The TBM logistics team has been updated. A receipt of this transaction has been sent to your email.</p>
             </div>
         </form>
     </div>
@@ -275,25 +275,29 @@
             const formData = new FormData();
             
             // EMAIL DATA PAYLOAD (ALL DETAILS INCLUDED)
-            formData.append('_subject', `RESPONSE: WO ${window.payloadData.wo} ${status.toUpperCase()} | Terraboost Media`);
+            formData.append('_subject', `OFFICIAL RECEIPT: WO ${window.payloadData.wo} ${status.toUpperCase()} | Terraboost Media`);
+            formData.append('_replyto', window.payloadData.ice); // Sends copy to IC email
+            
             formData.append('Contractor Name', window.payloadData.icn);
+            formData.append('Contractor Email', window.payloadData.ice);
             formData.append('Work Order #', window.payloadData.wo);
             formData.append('Final Decision', status);
-            formData.append('Optimized Mileage', window.payloadData.mi + " Miles");
-            formData.append('Estimated Drive Time', window.payloadData.time);
-            formData.append('Compensation Amount', "$" + window.payloadData.comp);
-            formData.append('Due Date', window.payloadData.due);
+            formData.append('Route Mileage', window.payloadData.mi + " Miles");
+            formData.append('Est Drive Time', window.payloadData.time);
+            formData.append('Compensation', "$" + window.payloadData.comp);
+            formData.append('Deadline', window.payloadData.due);
             
             if (status === 'Accepted') {
-                formData.append('Electronic Signature', name);
-                formData.append('Legal Consent', 'Agreed');
+                formData.append('Digital Signature', name);
+                formData.append('Legal Acknowledgment', 'Confirmed');
             } else {
-                formData.append('Reason for Rejection', declineReason);
-                formData.append('Counter Offer Requested', counterOffer ? "$" + counterOffer : "N/A");
+                formData.append('Rejection Reason', declineReason);
+                formData.append('Counter Offer', counterOffer ? "$" + counterOffer : "No Counter");
             }
 
             formData.append('Verification ID', txID);
-            formData.append('Submission Timestamp', new Date().toLocaleString());
+            formData.append('Dispatcher Link', window.location.href);
+            formData.append('Timestamp', new Date().toLocaleString());
             
             try {
                 await fetch('https://formspree.io/f/meerlqll', { method: 'POST', body: formData, headers: {'Accept': 'application/json'} });
