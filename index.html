@@ -25,7 +25,7 @@
 <body class="p-4 md:p-12">
 
     <div id="captureArea" class="max-w-4xl mx-auto form-card bg-white border border-gray-100 text-slate-800">
-        <div class="brand-blue p-8 text-white flex justify-between items-center no-print text-white">
+        <div class="brand-blue p-8 text-white flex justify-between items-center no-print">
             <div class="flex items-center gap-4 text-white">
                 <div class="bg-white/10 p-3 rounded-xl font-extrabold text-2xl border border-white/20 text-center w-14">TB</div>
                 <div>
@@ -45,18 +45,18 @@
                     <div><label>Contractor Email</label><input type="email" id="ic_email_setup" placeholder="worker@email.com" required></div>
                     <div><label>Work Order #</label><input type="text" id="task_num" placeholder="WO-0000" required></div>
                     <div><label>Compensation ($)</label><input type="number" id="comp" placeholder="0.00" required></div>
-                    <div><label>Due Date (Mandatory)</label><input type="date" id="due_date" required></div>
+                    <div><label>Due Date</label><input type="date" id="due_date" required></div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start border-t pt-6 mt-6">
                     <div class="space-y-4">
-                        <label class="text-blue-600 font-black">Route Locations</label>
-                        <textarea id="locations" rows="6" placeholder="Addresses here..." oninput="calculateRoute()"></textarea>
+                        <label class="text-blue-600 font-black">Route Locations (Optimize Enabled)</label>
+                        <textarea id="locations" rows="6" placeholder="Enter Start, then all stops, then End point..." oninput="calculateRoute()"></textarea>
                         
                         <div class="bg-slate-900 rounded-2xl p-6 text-white flex justify-between items-center shadow-xl">
-                            <div><p class="text-slate-400 text-[10px] uppercase font-black tracking-widest">Total Mileage</p><span id="mileage_display" class="text-3xl font-black text-emerald-400">0.0</span></div>
+                            <div><p class="text-slate-400 text-[10px] uppercase font-black tracking-widest">Optimized Miles</p><span id="mileage_display" class="text-3xl font-black text-emerald-400">0.0</span></div>
                             <div class="text-right">
-                                <p class="text-slate-400 text-[10px] uppercase font-black tracking-widest">Est. Time (w/ Traffic)</p>
+                                <p class="text-slate-400 text-[10px] uppercase font-black tracking-widest">Est. Drive Time</p>
                                 <span id="time_display" class="text-3xl font-black text-blue-400">--</span>
                             </div>
                         </div>
@@ -64,8 +64,8 @@
                     <div><div id="map"></div></div>
                 </div>
 
-                <button type="button" onclick="generateCertifiedLink()" class="w-full brand-blue text-white font-bold py-4 rounded-xl shadow-lg text-xs uppercase tracking-widest hover:opacity-90">
-                    🚀 Generate & Copy Certified Link
+                <button type="button" onclick="generateCertifiedLink()" class="w-full brand-blue text-white font-bold py-4 rounded-xl shadow-lg text-xs uppercase tracking-widest hover:opacity-90 transition-all">
+                    🚀 Generate Perfect Route & Copy Link
                 </button>
             </div>
 
@@ -133,6 +133,8 @@
             directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
         }
 
+        document.getElementById('locations').addEventListener('input', calculateRoute);
+
         function calculateRoute() {
             const lines = document.getElementById('locations').value.split('\n').filter(l => l.trim().length > 5);
             if (lines.length < 2) return;
@@ -141,12 +143,12 @@
                 origin: lines[0],
                 destination: lines[lines.length - 1],
                 waypoints: lines.slice(1, -1).map(loc => ({ location: loc, stopover: true })),
-                optimizeWaypoints: true,
+                optimizeWaypoints: true, // THE "PERFECT ROUTE" OPTIMIZER
                 travelMode: google.maps.TravelMode.DRIVING,
                 unitSystem: google.maps.UnitSystem.IMPERIAL,
                 drivingOptions: {
-                    departureTime: new Date(), // Required for traffic estimates
-                    trafficModel: 'pessimistic' 
+                    departureTime: new Date(), 
+                    trafficModel: 'best_guess' // BALANCED TRAFFIC MODEL
                 }
             }, (result, status) => {
                 if (status === "OK") {
@@ -156,12 +158,10 @@
                     
                     result.routes[0].legs.forEach(leg => { 
                         totalMeters += leg.distance.value; 
-                        // Pulling traffic-aware duration if available, otherwise standard
                         totalSeconds += (leg.duration_in_traffic ? leg.duration_in_traffic.value : leg.duration.value);
                     });
 
                     document.getElementById('mileage_display').innerText = (totalMeters * 0.000621371).toFixed(1);
-                    
                     const hours = Math.floor(totalSeconds / 3600);
                     const minutes = Math.floor((totalSeconds % 3600) / 60);
                     document.getElementById('time_display').innerText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
@@ -201,11 +201,11 @@
             const link = `${window.location.origin}${window.location.pathname}?data=${payload}`;
             
             navigator.clipboard.writeText(link);
-            const subject = encodeURIComponent(`Action Required: Route Authorization [WO #${d.wo}]`);
-            const body = encodeURIComponent(`Hello ${d.icn},\n\nA new Work Order has been dispatched. Review details here:\n\nWO #: ${d.wo}\nMiles: ${d.mi}\nEst. Time: ${d.time}\nComp: $${d.comp}\n\n${link}`);
+            const subject = encodeURIComponent(`Action Required: Optimized Route Authorization [WO #${d.wo}]`);
+            const body = encodeURIComponent(`Hello ${d.icn},\n\nAn optimized Work Order route has been dispatched. Review the efficiency details here:\n\nWO #: ${d.wo}\nTotal Optimized Miles: ${d.mi}\nEst. Drive Time: ${d.time}\nComp: $${d.comp}\n\n${link}`);
 
             window.location.href = `mailto:${d.ice}?subject=${subject}&body=${body}`;
-            alert("Certified Link Copied!");
+            alert("Perfect Route Link Copied!");
         }
 
         window.onload = () => {
@@ -221,8 +221,8 @@
                     document.getElementById('summaryZone').innerHTML = `
                         <div class="flex justify-between border-b pb-2"><strong>Contractor:</strong> <span>${d.icn}</span></div>
                         <div class="flex justify-between text-blue-600"><strong>Work Order #:</strong> <span class="font-bold">${d.wo}</span></div>
-                        <div class="flex justify-between"><strong>Mileage:</strong> <span>${d.mi} Miles</span></div>
-                        <div class="flex justify-between text-slate-500 italic"><strong>Time (incl. Traffic):</strong> <span>${d.time || 'N/A'}</span></div>
+                        <div class="flex justify-between"><strong>Optimized Mileage:</strong> <span>${d.mi} Miles</span></div>
+                        <div class="flex justify-between text-slate-500 italic"><strong>Est. Drive Time:</strong> <span>${d.time || 'N/A'}</span></div>
                         <div class="flex justify-between"><strong>Due Date:</strong> <span>${d.due}</span></div>
                         <div class="flex justify-between border-t pt-2 mt-2"><strong>Compensation:</strong> <span class="text-emerald-600 font-black">$${d.comp}</span></div>
                     `;
@@ -262,10 +262,11 @@
 
             const formData = new FormData();
             formData.append('_subject', `WO ${window.payloadData.wo} ${status.toUpperCase()}`);
-            formData.append('Summary', `Route ${status} by ${window.payloadData.icn}`);
+            formData.append('Summary', `Optimized Route ${status} by ${window.payloadData.icn}`);
             formData.append('Work Order', window.payloadData.wo);
             formData.append('Contractor', window.payloadData.icn);
             formData.append('Original Comp', `$${window.payloadData.comp}`);
+            formData.append('Optimized Mileage', `${window.payloadData.mi} mi`);
             formData.append('Traffic Est. Time', window.payloadData.time);
             
             if (status === 'Accepted') {
