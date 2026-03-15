@@ -40,7 +40,7 @@
             
             <div id="setupFields" class="space-y-8">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div><label>Dispatcher Email</label><input type="email" id="d_email" placeholder="installteam@terraboost.biz" required></div>
+                    <div><label>Dispatcher Email</label><input type="email" id="d_email" value="installteam@terraboost.biz" required></div>
                     <div><label>Contractor Name (IC)</label><input type="text" id="ic_name_setup" placeholder="Full Legal Name" required></div>
                     <div><label>Contractor Email</label><input type="email" id="ic_email_setup" placeholder="worker@email.com" required></div>
                     <div><label>Work Order #</label><input type="text" id="task_num" placeholder="TBM-XXXXX" required></div>
@@ -90,8 +90,7 @@
                             <span class="text-xs uppercase tracking-widest">Launch Optimized Navigation</span>
                         </button>
 
-                        <div id="summaryZone" class="bg-slate-50 p-8 rounded-3xl border border-slate-100 space-y-4 shadow-sm text-sm">
-                            </div>
+                        <div id="summaryZone" class="bg-slate-50 p-8 rounded-3xl border border-slate-100 space-y-4 shadow-sm text-sm"></div>
                     </div>
 
                     <div class="space-y-8 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
@@ -204,17 +203,18 @@
             
             navigator.clipboard.writeText(link);
             
-            const subject = encodeURIComponent(`Action Required: Route Request| WO #${d.wo}`);
-            const body = encodeURIComponent(`Dear ${d.icn},\n
-            `A professionally optimized route has been finalized for your upcoming TBM assignment request.\n\n` +
-            
+            const subject = encodeURIComponent(`Action Required: Route Request | WO #${d.wo}`);
+            const body = encodeURIComponent(
+                `Dear ${d.icn},\n\n` +
+                `A professionally optimized route has been finalized for your upcoming TBM assignment request.\n\n` +
                 `WORK ORDER SUMMARY:\n` +
                 `• WO ID: ${d.wo}\n` +
                 `• Due Date: ${d.due}\n\n` +
-                
-            \nReview and formally authorize your optimized TBM route here:
-            
-            \n\n${link}\n\nRegards,\nTerraboost Media Dispatch`);
+                `Review and formally authorize your optimized TBM route here:\n\n` +
+                `${link}\n\n` +
+                `Regards,\n` +
+                `Terraboost Media Dispatch`
+            );
 
             window.location.href = `mailto:${d.ice}?subject=${subject}&body=${body}`;
             alert("TBM Dispatch Link Copied!");
