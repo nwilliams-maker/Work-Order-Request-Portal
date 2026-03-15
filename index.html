@@ -18,6 +18,10 @@
         .signature-font { font-family: 'Dancing Script', cursive; font-size: 3rem; color: #0f172a; border-bottom: 2px solid #94a3b8; background: transparent; width: 100%; padding: 0; height: auto; line-height: 1; }
         .status-pill { transition: all 0.2s; cursor: pointer; border: 2px solid #e2e8f0; }
         input[type="radio"]:checked + .status-pill { border-color: currentColor; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #3b82f6; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
         @media print { .no-print { display: none !important; } }
     </style>
 </head>
@@ -31,7 +35,7 @@
                 </div>
                 <div>
                     <h1 class="text-3xl font-extrabold tracking-tight">Terraboost Media</h1>
-                    <p class="text-blue-400 text-xs uppercase font-black tracking-[0.2em] opacity-90">Logistics & Route Authorization Portal</p>
+                    <p class="text-blue-400 text-xs uppercase font-black tracking-[0.2em] opacity-90">Route Authorization Portal</p>
                 </div>
             </div>
         </div>
@@ -56,7 +60,11 @@
                         </div>
                         <textarea id="locations" rows="12" class="font-mono text-xs" placeholder="Paste addresses" oninput="calculateLargeRoute()"></textarea>
                         
-                        <div class="bg-slate-900 rounded-3xl p-8 text-white flex justify-between items-center shadow-2xl">
+                        <div class="bg-slate-900 rounded-3xl p-8 text-white flex justify-between items-center shadow-2xl relative overflow-hidden">
+                            <div id="loaderOverlay" class="absolute inset-0 bg-slate-900/90 hidden flex-col items-center justify-center gap-2">
+                                <div class="spinner"></div>
+                                <span id="progressText" class="text-[10px] uppercase font-black text-blue-400 tracking-widest">Syncing with Google...</span>
+                            </div>
                             <div><p class="text-slate-400 text-[10px] uppercase font-black tracking-widest">Mileage</p><span id="mileage_display" class="text-4xl font-black text-emerald-400">0.0</span></div>
                             <div class="text-right"><p class="text-slate-400 text-[10px] uppercase font-black tracking-widest text-white">Time</p><span id="time_display" class="text-4xl font-black text-blue-400">--</span></div>
                         </div>
@@ -102,7 +110,7 @@
                             <div class="flex items-start gap-4 p-5 bg-blue-50/50 rounded-2xl border border-blue-100">
                                 <input type="checkbox" id="legal_consent" class="mt-1 h-6 w-6 rounded border-slate-300 text-blue-600 cursor-pointer">
                                 <label for="legal_consent" class="normal-case font-bold text-[11px] text-slate-700 leading-relaxed cursor-pointer">
-                                    I, the undersigned, hereby certify that I have reviewed the logistics, optimized route, and compensation details provided by Terraboost Media. By checking this box and providing my digital signature, I formally authorize the commencement of this work order and agree to the terms as presented.
+                                    I, the undersigned, hereby certify that I have reviewed the optimized route and compensation details provided by Terraboost Media. By checking this box and providing my digital signature, I formally authorize the commencement of this work order and agree to the terms as presented.
                                 </label>
                             </div>
                         </div>
@@ -130,7 +138,7 @@
             <div id="successView" class="hidden text-center py-20 space-y-6">
                 <div class="text-6xl">✅</div>
                 <h2 class="text-3xl font-black uppercase text-slate-900 tracking-tight">Response Recorded</h2>
-                <p class="text-slate-500">The TBM logistics team has been updated. A receipt of this transaction has been sent to your email.</p>
+                <p class="text-slate-500">The TBM Dispatch team has been updated. A receipt of this transaction has been sent to your email.</p>
             </div>
         </form>
     </div>
@@ -157,30 +165,61 @@
         let throttle;
         async function calculateLargeRoute() {
             clearTimeout(throttle);
+            const loader = document.getElementById('loaderOverlay');
+            const progressText = document.getElementById('progressText');
+            
             throttle = setTimeout(async () => {
                 const lines = document.getElementById('locations').value.split('\n').filter(l => l.trim().length > 5);
                 if (lines.length < 2) return;
                 
+                loader.classList.remove('hidden');
+                loader.classList.add('flex');
+                
                 let totalM = 0, totalS = 0;
-                for (let i = 0; i < lines.length - 1; i += 10) {
-                    const chunk = lines.slice(i, i + 11);
-                    const req = {
-                        origin: chunk[0], destination: chunk[chunk.length-1],
-                        waypoints: chunk.slice(1,-1).map(l => ({location: l, stopover: true})),
-                        optimizeWaypoints: true, travelMode: 'DRIVING'
-                    };
-                    await new Promise(r => directionsService.route(req, (res, stat) => {
-                        if (stat === 'OK') {
-                            if (i === 0) directionsRenderer.setDirections(res);
-                            res.routes[0].legs.forEach(leg => { totalM += leg.distance.value; totalS += leg.duration.value; });
-                        }
-                        setTimeout(r, 400);
-                    }));
+                const batchSize = 25;
+                const totalBatches = Math.ceil((lines.length - 1) / batchSize);
+
+                try {
+                    for (let i = 0; i < lines.length - 1; i += batchSize) {
+                        const currentBatch = Math.floor(i / batchSize) + 1;
+                        progressText.innerText = `Syncing Batch ${currentBatch} of ${totalBatches}...`;
+                        
+                        const chunk = lines.slice(i, i + batchSize + 1);
+                        const req = {
+                            origin: chunk[0],
+                            destination: chunk[chunk.length-1],
+                            waypoints: chunk.slice(1,-1).map(l => ({location: l, stopover: true})),
+                            optimizeWaypoints: true,
+                            travelMode: google.maps.TravelMode.DRIVING,
+                            drivingOptions: { departureTime: new Date(), trafficModel: google.maps.TrafficModel.BEST_GUESS }
+                        };
+
+                        const result = await new Promise((resolve, reject) => {
+                            directionsService.route(req, (res, stat) => {
+                                if (stat === 'OK') resolve(res);
+                                else reject(stat);
+                            });
+                        });
+
+                        if (i === 0) directionsRenderer.setDirections(result);
+                        result.routes[0].legs.forEach(leg => { 
+                            totalM += leg.distance.value; 
+                            totalS += (leg.duration_in_traffic ? leg.duration_in_traffic.value : leg.duration.value); 
+                        });
+                        
+                        if (totalBatches > 1) await new Promise(r => setTimeout(r, 600));
+                    }
+
+                    document.getElementById('mileage_display').innerText = (totalM * 0.000621371).toFixed(1);
+                    const h = Math.floor(totalS / 3600), m = Math.floor((totalS % 3600) / 60);
+                    document.getElementById('time_display').innerText = h > 0 ? h+"h "+m+"m" : m+"m";
+                } catch (e) {
+                    console.error("Routing error:", e);
+                } finally {
+                    loader.classList.add('hidden');
+                    loader.classList.remove('flex');
                 }
-                document.getElementById('mileage_display').innerText = (totalM * 0.000621371).toFixed(1);
-                const h = Math.floor(totalS / 3600), m = Math.floor((totalS % 3600) / 60);
-                document.getElementById('time_display').innerText = h > 0 ? h+"h "+m+"m" : m+"m";
-            }, 1200);
+            }, 800);
         }
 
         function generateCertifiedLink() {
@@ -223,7 +262,7 @@
         function toggleDecision(c) {
             document.getElementById('acceptFields').classList.toggle('hidden', c === 'Declined');
             document.getElementById('declineFields').classList.toggle('hidden', c === 'Accepted');
-            document.getElementById('submitBtn').className = c === 'Accepted' ? "bg-blue-600 text-white font-black px-12 py-5 rounded-2xl shadow-xl text-xs" : "bg-red-600 text-white font-black px-12 py-5 rounded-2xl shadow-xl text-xs";
+            document.getElementById('submitBtn').className = c === 'Accepted' ? "bg-blue-600 text-white font-black px-12 py-5 rounded-2xl shadow-xl text-xs uppercase" : "bg-red-600 text-white font-black px-12 py-5 rounded-2xl shadow-xl text-xs uppercase";
         }
 
         function viewRoute() {
@@ -274,9 +313,10 @@
             const txID = `TBM-${window.payloadData.wo}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
             const formData = new FormData();
             
-            // EMAIL DATA PAYLOAD (ALL DETAILS INCLUDED)
             formData.append('_subject', `OFFICIAL RECEIPT: WO ${window.payloadData.wo} ${status.toUpperCase()} | Terraboost Media`);
-            formData.append('_replyto', window.payloadData.ice); // Sends copy to IC email
+            
+            // KEY FIX: Re-adding _replyto ensure Contractor receives the receipt via Formspree
+            formData.append('_replyto', window.payloadData.ice); 
             
             formData.append('Contractor Name', window.payloadData.icn);
             formData.append('Contractor Email', window.payloadData.ice);
@@ -296,7 +336,6 @@
             }
 
             formData.append('Verification ID', txID);
-            formData.append('Dispatcher Link', window.location.href);
             formData.append('Timestamp', new Date().toLocaleString());
             
             try {
