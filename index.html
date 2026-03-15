@@ -98,7 +98,7 @@
                                 <span class="text-xs uppercase tracking-widest">Launch Optimized Navigation</span>
                             </button>
                             <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-2 text-center">
-                                * Note: Google Maps limits mobile navigation to the first 11 stops.
+                                * Opens in browser to support up to 25 stops.
                             </p>
                         </div>
 
@@ -275,19 +275,18 @@
             const stops = window.payloadData.locs.split('|');
             if (stops.length < 2) return alert("Insufficient stops to navigate.");
 
-            // FIX: Consumer Google Maps limits waypoints. Partial route slice to ensure the app opens.
-            const partialStops = stops.slice(0, 11);
+            // Pull up to 25 stops
+            const partialStops = stops.slice(0, 25);
             const origin = encodeURIComponent(partialStops[0]);
             const destination = encodeURIComponent(partialStops[partialStops.length - 1]);
+            const waypoints = encodeURIComponent(partialStops.slice(1, -1).join(','));
             
-            let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+            const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypoints}&travelmode=driving`;
+
+            // FORCE BROWSER HACK: Wrap in a Google Search redirect
+            const forceBrowserUrl = `https://www.google.com/url?q=${encodeURIComponent(mapsUrl)}`;
             
-            if (partialStops.length > 2) {
-                const waypoints = partialStops.slice(1, -1).join(',');
-                url += `&waypoints=${encodeURIComponent(waypoints)}`;
-            }
-            
-            window.open(url, '_blank');
+            window.open(forceBrowserUrl, '_blank');
         }
 
         window.onload = () => {
