@@ -264,15 +264,26 @@
             document.getElementById('submitBtn').className = c === 'Accepted' ? "bg-blue-600 text-white font-black px-12 py-5 rounded-2xl shadow-xl text-xs uppercase" : "bg-red-600 text-white font-black px-12 py-5 rounded-2xl shadow-xl text-xs uppercase";
         }
 
-        function viewRoute() {
+       function viewRoute() {
             if (!window.payloadData || !window.payloadData.locs) return alert("Route data missing.");
+            
             const stops = window.payloadData.locs.split('|');
-            const origin = encodeURIComponent(stops[0]);
-            const dest = encodeURIComponent(stops[stops.length-1]);
-            const waypoints = encodeURIComponent(stops.slice(1,-1).join('|'));
-            window.open(`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&waypoints=${waypoints}&travelmode=driving`, '_blank');
-        }
+            if (stops.length < 2) return alert("Insufficient stops to navigate.");
 
+            const origin = encodeURIComponent(stops[0]);
+            const destination = encodeURIComponent(stops[stops.length - 1]);
+            
+            // Fix: Google Maps standard URLs often limit waypoints. 
+            // We use the 'dir' action which is more reliable for 10+ stops.
+            let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+            
+            if (stops.length > 2) {
+                const waypoints = stops.slice(1, -1).join('|');
+                url += `&waypoints=${encodeURIComponent(waypoints)}`;
+            }
+            
+            window.open(url, '_blank');
+        }
         window.onload = () => {
             initMap();
             const params = new URLSearchParams(window.location.search);
