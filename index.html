@@ -102,7 +102,7 @@
                             </button>
 
                             <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tight text-center leading-relaxed">
-                                * The Maps app may hide stops on long routes. To see all 25 locations, click "Copy Browser Link" and paste it manually into Chrome or Safari.
+                                * The Maps app may hide stops on long routes. To see all 25 locations, click "Copy Browser Link" and paste it manually into your browser.
                             </p>
                         </div>
 
@@ -218,15 +218,12 @@
             const url = buildMapsUrl();
             if (url) {
                 navigator.clipboard.writeText(url);
-                
                 const btn = document.getElementById('copyBtn');
                 const text = document.getElementById('copyText');
                 const icon = document.getElementById('copyIcon');
-
                 btn.classList.add('copy-success');
                 text.innerText = "Link Copied to Clipboard!";
                 icon.innerText = "✅";
-
                 setTimeout(() => {
                     btn.classList.remove('copy-success');
                     text.innerText = "Copy Browser Link (Full Route)";
@@ -247,12 +244,30 @@
                 due: document.getElementById('due_date').value,
                 locs: document.getElementById('locations').value.split('\n').filter(l => l.trim().length > 2).join('|')
             };
-            if (!d.de || !d.icn || !d.wo || !d.comp || !d.due || d.mi === "0.0") return alert("Incomplete data.");
+
+            if (!d.de || !d.icn || !d.wo || !d.comp || !d.due || d.mi === "0.0") return alert("Configuration incomplete.");
+
             const payload = btoa(unescape(encodeURIComponent(JSON.stringify(d))));
             const link = `${window.location.origin}${window.location.pathname}?data=${payload}`;
+            
             navigator.clipboard.writeText(link);
-            window.location.href = `mailto:${d.ice}?subject=WO ${d.wo} Route Authorization&body=Review here: ${link}`;
-            alert("Dispatcher link copied!");
+            
+            // Updated Email Formatting
+            const subject = encodeURIComponent(`Action Required: Route Request | WO #${d.wo}`);
+            const body = encodeURIComponent(
+                `Dear ${d.icn},\n\n` +
+                `A professionally optimized route has been finalized for your upcoming TBM assignment request.\n\n` +
+                `WORK ORDER SUMMARY:\n` +
+                `• WO ID: ${d.wo}\n` +
+                `• Due Date: ${d.due}\n\n` +
+                `Review and formally authorize your optimized TBM route here:\n\n` +
+                `${link}\n\n` +
+                `Regards,\n` +
+                `Terraboost Media Dispatch`
+            );
+
+            window.location.href = `mailto:${d.ice}?subject=${subject}&body=${body}`;
+            alert("TBM Dispatch Link Copied!");
         }
 
         function toggleDecision(c) {
@@ -265,18 +280,20 @@
             const params = new URLSearchParams(window.location.search);
             const raw = params.get('data');
             if (raw) {
-                const d = JSON.parse(decodeURIComponent(escape(atob(raw))));
-                document.getElementById('setupFields').remove();
-                document.getElementById('icMode').classList.remove('hidden');
-                document.getElementById('dateDisplay').innerText = new Date().toLocaleDateString();
-                document.getElementById('summaryZone').innerHTML = `
-                    <div class="flex justify-between border-b pb-2 mb-2 font-bold"><span>Contractor:</span> <span>${d.icn}</span></div>
-                    <div class="flex justify-between text-blue-600 font-black"><span>Work Order #:</span> <span>${d.wo}</span></div>
-                    <div class="flex justify-between"><span>Mileage:</span> <span>${d.mi} Miles</span></div>
-                    <div class="flex justify-between"><span>Due:</span> <span>${d.due}</span></div>
-                    <div class="flex justify-between border-t pt-2 mt-2 font-black text-xl text-emerald-600"><span>Comp:</span> <span>$${d.comp}</span></div>
-                `;
-                window.payloadData = d;
+                try {
+                    const d = JSON.parse(decodeURIComponent(escape(atob(raw))));
+                    document.getElementById('setupFields').remove();
+                    document.getElementById('icMode').classList.remove('hidden');
+                    document.getElementById('dateDisplay').innerText = new Date().toLocaleDateString();
+                    document.getElementById('summaryZone').innerHTML = `
+                        <div class="flex justify-between border-b pb-2 mb-2 font-bold"><span>Contractor:</span> <span>${d.icn}</span></div>
+                        <div class="flex justify-between text-blue-600 font-black"><span>Work Order #:</span> <span>${d.wo}</span></div>
+                        <div class="flex justify-between"><span>Mileage:</span> <span>${d.mi} Miles</span></div>
+                        <div class="flex justify-between"><span>Due:</span> <span>${d.due}</span></div>
+                        <div class="flex justify-between border-t pt-2 mt-2 font-black text-xl text-emerald-600"><span>Comp:</span> <span>$${d.comp}</span></div>
+                    `;
+                    window.payloadData = d;
+                } catch(e) { console.error("Mapping Error"); }
             }
         };
 
