@@ -102,12 +102,12 @@
                         <div id="acceptFields" class="space-y-8">
                             <div>
                                 <label class="text-blue-600 font-black mb-4">Contractor Electronic Signature</label>
-                                <input type="text" id="typed_sig" placeholder="Type Legal Name" class="signature-font border-none outline-none focus:ring-0">
+                                <input type="text" id="typed_sig" placeholder="Type Legal Name" class="signature-font border-none outline-none focus:ring-0" oninput="updateLiveSignature(this.value)">
                             </div>
                             <div class="flex items-start gap-4 p-5 bg-blue-50/50 rounded-2xl border border-blue-100">
                                 <input type="checkbox" id="legal_consent" class="mt-1 h-6 w-6 rounded border-slate-300 text-blue-600 cursor-pointer">
                                 <label for="legal_consent" class="normal-case font-bold text-[11px] text-slate-700 leading-relaxed cursor-pointer">
-                                    I certify that I have reviewed the interchangeable optimized route and compensation. By signing, I authorize the work order and agree to the terms.
+                                    I, <span id="live_sig_text" class="text-blue-800 font-black italic border-b-2 border-blue-200 px-1">________________</span>, hereby certify that I have reviewed the interchangeable optimized route and compensation. By signing, I authorize the work order and agree to the terms.
                                 </label>
                             </div>
                         </div>
@@ -148,12 +148,12 @@
 
         function calculateLargeRoute() {
             clearTimeout(inputTimer);
+            const loaderOverlay = document.getElementById('loaderOverlay');
             inputTimer = setTimeout(async () => {
-                const loader = document.getElementById('loaderOverlay');
                 const lines = document.getElementById('locations').value.split('\n').filter(l => l.trim().length > 5);
                 if (lines.length < 2) return;
                 
-                loader.classList.remove('hidden'); loader.classList.add('flex');
+                loaderOverlay.classList.remove('hidden'); loaderOverlay.classList.add('flex');
                 let totalM = 0, totalS = 0;
                 
                 const chunk = lines.slice(0, 25);
@@ -176,9 +176,13 @@
                         const h = Math.floor(totalS / 3600), m = Math.floor((totalS % 3600) / 60);
                         document.getElementById('time_display').innerText = h > 0 ? h+"h "+m+"m" : m+"m";
                     }
-                    loader.classList.add('hidden');
+                    loaderOverlay.classList.add('hidden');
                 });
-            }, 800); // Wait 800ms after last keystroke
+            }, 800);
+        }
+
+        function updateLiveSignature(val) {
+            document.getElementById('live_sig_text').innerText = val.trim() || "________________";
         }
 
         function buildMapsUrl(limit) {
@@ -186,14 +190,22 @@
             const stops = window.payloadData.locs.split('|').slice(0, limit);
             if (stops.length < 2) return null;
 
+            // Updated URL construction using 'dir' with multiple waypoints for broad browser support
             const origin = encodeURIComponent(stops[0]);
-            const dest = encodeURIComponent(stops[stops.length-1]);
-            const waypointsList = stops.slice(1, -1);
+            const destination = encodeURIComponent(stops[stops.length-1]);
+            const waypoints = stops.slice(1, -1);
             
-            // Using comma separator which is more character-efficient for long URLs
-            const waypoints = waypointsList.length > 0 ? `&waypoints=${encodeURIComponent(waypointsList.join(','))}` : '';
+            // Format: /dir/Origin/Destination/data=!4m2!4m1!3e0
+            // This force-triggers the directions renderer for the full list
+            let url = `https://www.google.com/maps/dir/${origin}/${destination}/`;
             
-            return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}${waypoints}&travelmode=driving`;
+            if (waypoints.length > 0) {
+                // Encode waypoints as sequential stops
+                const waypointString = waypoints.map(w => encodeURIComponent(w)).join('/');
+                url = `https://www.google.com/maps/dir/${origin}/${waypointString}/${destination}/data=!4m2!4m1!3e0`;
+            }
+            
+            return url;
         }
 
         function viewRoute(limit) {
@@ -209,7 +221,7 @@
                 const text = document.getElementById('copyText');
                 const icon = document.getElementById('copyIcon');
                 btn.classList.add('copy-success');
-                text.innerText = "Link Copied!";
+                text.innerText = "Full Route Copied!";
                 icon.innerText = "✅";
                 setTimeout(() => {
                     btn.classList.remove('copy-success');
@@ -231,16 +243,16 @@
                 locs: document.getElementById('locations').value.split('\n').filter(l => l.trim().length > 2).join('|')
             };
 
-            if (d.mi === "0.0") return alert("Please enter addresses and wait for mileage calculation.");
+            if (d.mi === "0.0") return alert("Please calculate mileage first.");
 
             const payload = btoa(unescape(encodeURIComponent(JSON.stringify(d))));
             const link = `${window.location.origin}${window.location.pathname}?data=${payload}`;
             navigator.clipboard.writeText(link);
             
-            const subject = encodeURIComponent(`Action Required: Route Request | WO #${d.wo}`);
+            const subject = encodeURIComponent(`Action Required: Terraboost Route Request | WO #${d.wo}`);
             const body = encodeURIComponent(
                 `Dear ${d.icn},\n\n` +
-                `A professionally optimized route has been finalized for your upcoming TBM assignment request.\n\n` +
+                `A professionally optimized route has been finalized for your potential upcoming TBM assignment.\n\n` +
                 `WORK ORDER SUMMARY:\n` +
                 `• WO ID: ${d.wo}\n` +
                 `• Due Date: ${d.due}\n\n` +
@@ -260,6 +272,7 @@
 
         window.onload = () => {
             initMap();
+            const loaderOverlay = document.getElementById('loaderOverlay');
             const params = new URLSearchParams(window.location.search);
             const raw = params.get('data');
             if (raw) {
