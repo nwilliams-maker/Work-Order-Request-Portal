@@ -220,24 +220,13 @@
             const loader = document.getElementById('loaderOverlay');
             loader.classList.remove('hidden'); loader.classList.add('flex');
             
+            // Pass the address to the backend so it geocodes safely
             let url = `${webAppUrl}?action=getOnfleetTasks`;
+            if (homeAddress) {
+                url += `&homeAddress=${encodeURIComponent(homeAddress)}`;
+            }
 
             try {
-                let homeLoc = null;
-                if (!isGlobal && homeAddress) {
-                    const geocoder = new google.maps.Geocoder();
-                    await new Promise((resolve, reject) => {
-                        geocoder.geocode({ address: homeAddress }, (results, status) => {
-                            if (status === 'OK') {
-                                homeLoc = results[0].geometry.location;
-                                resolve();
-                            } else {
-                                reject(new Error("Google Maps blocked the request. API Status: " + status));
-                            }
-                        });
-                    });
-                }
-
                 const response = await fetch(url);
                 const data = await response.json();
                 
@@ -249,7 +238,12 @@
                 allOnfleetMarkers = [];
                 const selectedAddresses = {};
 
-                // Establish bounds so the map forcefully zooms into the 40-mile area
+                // Use the backend's coordinates, bypassing the Google Cloud error!
+                let homeLoc = null;
+                if (data.homeLoc) {
+                    homeLoc = new google.maps.LatLng(data.homeLoc.lat, data.homeLoc.lng);
+                }
+
                 let localBounds = new google.maps.LatLngBounds();
                 if (homeLoc) localBounds.extend(homeLoc);
 
@@ -276,7 +270,7 @@
                             if (!selectedAddresses[task.addr]) selectedAddresses[task.addr] = { count: 0, kioskCount: 0 };
                             selectedAddresses[task.addr].count++;
                             if (task.isKiosk) selectedAddresses[task.addr].kioskCount++;
-                            localBounds.extend(taskLatLng); // Add to zoom boundary
+                            localBounds.extend(taskLatLng);
                         }
                     }
                 });
@@ -292,7 +286,6 @@
                     
                     document.getElementById('locations').value = formatted;
                     
-                    // FORCE THE MAP TO ZOOM TO THE LOCAL AREA (Solves the zooming bug)
                     map.fitBounds(localBounds);
                     const listener = google.maps.event.addListener(map, "idle", function() { 
                         if (map.getZoom() > 10) map.setZoom(10); 
