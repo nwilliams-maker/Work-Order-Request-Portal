@@ -99,7 +99,10 @@
                     
                     <div class="xl:col-span-4 space-y-6">
                         <div class="map-control-glass p-5 rounded-2xl shadow-sm space-y-5">
-                            <label class="text-blue-600 font-black tracking-widest text-[10px] mb-0 whitespace-nowrap">Map Controls</label>
+                            
+                            <div class="flex justify-between items-center">
+                                <label class="text-blue-600 font-black tracking-widest text-[10px] mb-0 whitespace-nowrap">Map Controls</label>
+                            </div>
                             
                             <div class="grid grid-cols-2 gap-3">
                                 <select id="podFilter" onchange="applyMapFilters()" class="py-2.5 px-3 text-[10px] font-bold uppercase cursor-pointer bg-white">
@@ -112,15 +115,14 @@
                                 </select>
                                 
                                 <label class="flex items-center justify-center gap-2 text-[10px] font-bold uppercase text-slate-700 cursor-pointer bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all select-none">
-                                    <input type="checkbox" id="digitalFilter" onchange="applyMapFilters()" checked class="w-3.5 h-3.5 text-blue-600 rounded"> 
+                                    <input type="checkbox" id="digitalFilter" onchange="applyMapFilters()" class="w-3.5 h-3.5 text-blue-600 rounded"> 
                                     Inc. Digital
                                 </label>
                             </div>
 
                             <div class="grid grid-cols-2 gap-3">
                                 <button type="button" onclick="fetchOnfleetTasks(true)" class="btn-modern bg-blue-600 text-white text-[10px] font-black py-2.5 rounded-xl uppercase shadow-md">🔄 Add All Tasks</button>
-                                <button type="button" onclick="fetchOnfleetTasks(false)" class="btn-modern bg-emerald-600 text-white text-[10px] font-black py-2.5 rounded-xl uppercase shadow-md">📍 Sync 40 Miles</button>
-                                <button type="button" id="btnToggleICs" onclick="toggleICMarkers()" class="btn-modern bg-slate-800 text-white text-[10px] font-black py-2.5 rounded-xl uppercase shadow-md col-span-2">👷 Show IC Locations</button>
+                                <button type="button" onclick="fetchOnfleetTasks(false)" class="btn-modern bg-emerald-600 text-white text-[10px] font-black py-2.5 rounded-xl uppercase shadow-md">📍 Sync 40 Mi</button>
                             </div>
                         </div>
 
@@ -131,9 +133,9 @@
                             </div>
                             
                             <div class="flex gap-2 flex-wrap mb-3 min-h-[24px]">
-                                <span id="location_count_badge" class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[9px] font-bold hidden shadow-sm">0 Stops</span>
-                                <span id="kiosk_count_badge" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[9px] font-bold hidden shadow-sm">0 Kiosk Installs</span>
                                 <span id="digital_count_badge" class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-[9px] font-bold hidden shadow-sm">0 Digital Service</span>
+                                <span id="kiosk_count_badge" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[9px] font-bold hidden shadow-sm">0 Kiosk Installs</span>
+                                <span id="location_count_badge" class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[9px] font-bold hidden shadow-sm">0 Stops</span>
                             </div>
 
                             <textarea id="locations" rows="11" class="font-mono text-[11px] leading-relaxed resize-none shadow-inner" placeholder="Use the Map Polygon Tool to lasso tasks. They will populate here automatically..." oninput="calculateLargeRoute(); clearError(this);"></textarea>
@@ -143,7 +145,7 @@
                             <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-emerald-400 to-blue-500 opacity-50"></div>
                             <div id="loaderOverlay" class="absolute inset-0 bg-slate-900/90 hidden flex-col items-center justify-center gap-3 z-10">
                                 <div class="spinner"></div>
-                                <span class="text-[10px] font-black tracking-widest text-blue-400 uppercase">Loading...</span>
+                                <span class="text-[10px] font-black tracking-widest text-blue-400 uppercase">Loading Data...</span>
                             </div>
                             
                             <div class="flex justify-between items-center">
@@ -169,9 +171,13 @@
                             <div class="flex flex-wrap items-center gap-3 text-[9px] font-black uppercase text-slate-600 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200">
                                 <span class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm"></div> Escalation</span>
                                 <span class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-sm"></div> Boosted</span>
-                                <span class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm"></div> CVS Kiosk</span>
+                                <span class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm"></div> CVS Kiosk Removal</span>
                                 <span class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></div> Kiosk Install</span>
                                 <span class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-sm"></div> Digital Service</span>
+                                <span class="flex items-center gap-1.5">
+                                    <div class="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-sm border border-black"></div> 
+                                    Contractor <span id="ic_counter" class="text-blue-500 font-bold animate-pulse ml-0.5 tracking-normal"></span>
+                                </span>
                             </div>
                         </div>
                         
@@ -255,7 +261,6 @@
         let currentLocCount = 0, currentTaskCount = 0, currentKioskCount = 0, currentDigitalCount = 0;
         let allOnfleetMarkers = [];
         let icMarkers = []; 
-        let icsVisible = false; 
         
         let currentGlobalRate = 30; 
         let allContractors = [];
@@ -367,43 +372,40 @@
 
                 marker.setVisible(show);
             });
+            
+            icMarkers.forEach(marker => {
+                const ic = marker.icData;
+                let show = true;
+                if (selectedPod !== "All" && ic.pod !== selectedPod) show = false;
+                marker.setVisible(show);
+            });
         }
 
-        async function toggleICMarkers() {
-            const btn = document.getElementById('btnToggleICs');
-            
-            if (icsVisible) {
-                icMarkers.forEach(m => m.setMap(null));
-                icsVisible = false;
-                btn.innerHTML = "👷 Show IC Locations";
-                btn.classList.remove('bg-slate-800', 'text-white');
-                btn.classList.add('bg-slate-100', 'text-slate-800');
-                return;
-            }
-            
-            if (allContractors.length === 0) {
-                alert("Contractor data is still loading. Please wait a moment and try again.");
-                return;
-            }
+        async function autoLoadICMarkers() {
+            const validContractors = allContractors.filter(c => c.address && c.address.length >= 5);
+            const totalValid = validContractors.length;
+            let loadedICs = 0;
+            const counterEl = document.getElementById('ic_counter');
 
-            icsVisible = true;
-            btn.innerHTML = "<span class='spinner inline-block w-4 h-4 border-2 mr-2' style='border-top-color:transparent;'></span> Loading Pins...";
-            btn.classList.remove('bg-slate-100', 'text-slate-800');
-            btn.classList.add('bg-slate-800', 'text-white');
-            
-            const geocoder = new google.maps.Geocoder();
-            
-            for (let i = 0; i < allContractors.length; i++) {
-                if (!icsVisible) break; 
-                
-                const c = allContractors[i];
-                if (!c.address || c.address.length < 5) continue;
-                
-                if (c.lat) {
-                    addICMarker(c);
-                    continue;
+            if (totalValid === 0) return;
+
+            const updateCounter = () => {
+                if (counterEl) {
+                    if (loadedICs < totalValid) {
+                        counterEl.innerText = `${loadedICs}/${totalValid}`;
+                    } else {
+                        counterEl.innerText = `${totalValid}/${totalValid}`;
+                        counterEl.classList.remove('text-blue-500', 'animate-pulse');
+                        counterEl.classList.add('text-slate-400');
+                    }
                 }
+            };
 
+            updateCounter(); 
+
+            for (let i = 0; i < validContractors.length; i++) {
+                const c = validContractors[i];
+                
                 const cacheKey = 'tbm_geo_' + btoa(encodeURIComponent(c.address));
                 const cachedCoords = localStorage.getItem(cacheKey);
                 if (cachedCoords) {
@@ -411,30 +413,31 @@
                     c.lat = coords.lat;
                     c.lng = coords.lng;
                     addICMarker(c);
+                    loadedICs++;
+                    updateCounter();
                     continue; 
                 }
 
                 try {
-                    const res = await new Promise((resolve, reject) => {
-                        geocoder.geocode({ address: c.address }, (results, status) => {
-                            if (status === 'OK') resolve(results[0].geometry.location);
-                            else reject(status);
-                        });
-                    });
-                    c.lat = res.lat();
-                    c.lng = res.lng();
+                    const res = await fetch(`${webAppUrl}?action=geocode&address=${encodeURIComponent(c.address)}`);
+                    const geoData = await res.json();
                     
-                    localStorage.setItem(cacheKey, JSON.stringify({lat: c.lat, lng: c.lng}));
+                    if (geoData.success) {
+                        c.lat = geoData.lat;
+                        c.lng = geoData.lng;
+                        localStorage.setItem(cacheKey, JSON.stringify({lat: c.lat, lng: c.lng}));
+                        addICMarker(c);
+                    }
                     
-                    addICMarker(c);
-                    await new Promise(r => setTimeout(r, 300)); 
+                    loadedICs++;
+                    updateCounter();
+                    await new Promise(r => setTimeout(r, 200)); 
                 } catch (e) {
                     console.warn("Geocode failed for: " + c.name);
-                    await new Promise(r => setTimeout(r, 500)); 
+                    loadedICs++;
+                    updateCounter();
                 }
             }
-            
-            if (icsVisible) btn.innerHTML = "👷 Hide IC Locations";
         }
 
         function addICMarker(c) {
@@ -443,10 +446,23 @@
                 map: map,
                 title: `${c.name} (${c.email})`, 
                 icon: {
-                    url: "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png" 
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 3, 
+                    fillColor: "#facc15", 
+                    fillOpacity: 1,
+                    strokeWeight: 1,
+                    strokeColor: "#000000"
                 },
-                zIndex: 999 
+                zIndex: 10 
             });
+            
+            marker.icData = c; 
+            
+            const selectedPod = document.getElementById('podFilter').value;
+            if (selectedPod !== "All" && c.pod !== selectedPod) {
+                marker.setVisible(false);
+            }
+            
             icMarkers.push(marker);
         }
 
@@ -549,7 +565,8 @@
                             fillOpacity: 1,
                             strokeWeight: 1.5,
                             strokeColor: "#ffffff"
-                        }
+                        },
+                        zIndex: 100 
                     });
                     marker.taskData = task;
                     allOnfleetMarkers.push(marker);
@@ -895,6 +912,20 @@
                 .then(data => {
                     if (data.success && data.contractors) {
                         allContractors = data.contractors; 
+                        
+                        allContractors.forEach(c => {
+                            let matchedPod = "Unknown";
+                            const addrUpper = (c.address || "").toUpperCase();
+                            for (const [stateAbbr, podColor] of Object.entries(podData)) {
+                                if (addrUpper.endsWith(` ${stateAbbr}`) || addrUpper.includes(`, ${stateAbbr} `) || addrUpper.includes(` ${stateAbbr} `)) {
+                                    matchedPod = podColor;
+                                    break;
+                                }
+                            }
+                            c.pod = matchedPod;
+                        });
+                        
+                        autoLoadICMarkers();
                     }
                 }).catch(e => console.log("Silent error loading contractor DB", e));
             
@@ -920,7 +951,6 @@
                         
                         let displayDate = d.due ? `${d.due.split('-')[1]}/${d.due.split('-')[2]}/${d.due.split('-')[0]}` : 'N/A';
                         
-                        // NEW: Kiosk Heavy Lifting Call-out Box!
                         let kioskAlert = '';
                         if (d.kCnt && d.kCnt > 0) {
                             kioskAlert = `
