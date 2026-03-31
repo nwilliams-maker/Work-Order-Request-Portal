@@ -272,6 +272,7 @@
         let currentGlobalRate = 30; 
         let allContractors = [];
         
+        // UPDATE TO YOUR LATEST DEPLOYED URL
         const webAppUrl = "https://script.google.com/macros/s/AKfycbwxVaO2L0hhtGCejNxSUEon9dFgeU8upvQo4h-sqiPHjwzpHSNjL9KiSWOrcU6vQHOmUw/exec"; 
         const formspreeUrl = "https://formspree.io/f/meerlqll"; 
 
@@ -885,8 +886,7 @@
                     jobOnly: jobListOnly,
                     phone: window.currentContractorPhone,
                     taskIds: uniqueIds.join(','),
-                    notes: dispatchNotes, // Sent into the payload!
-                    // INJECTED: Save the dispatcher's email into the payload
+                    notes: dispatchNotes,
                     dispatcherEmail: document.getElementById('d_email').value 
                 };
 
@@ -1142,8 +1142,7 @@
                 "Signature": sig || "N/A",
                 "TASK LOCATION LIST": "\n" + locationList,
                 "_subject": `${decision}: WO #${window.payloadData.wo} (${window.payloadData.icn})`,
-                // INJECTED: Tell Formspree to copy the dispatcher!
-                "_cc": window.payloadData.dispatcherEmail 
+                "_cc": window.payloadData.dispatcherEmail
             };
 
             try {
