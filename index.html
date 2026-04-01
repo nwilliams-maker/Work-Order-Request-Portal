@@ -1210,27 +1210,35 @@
                     document.getElementById('icMode').classList.add('hidden');
                     document.getElementById('successView').classList.remove('hidden');
 
-                    if (decision === 'Accepted' && window.payloadData.phone && window.payloadData.taskIds) {
-                        const assignPayload = {
-                            action: "assignTasks",
-                            phone: window.payloadData.phone,
-                            taskIds: window.payloadData.taskIds
-                        };
-                        
-                        fetch(webAppUrl, {
-                            method: 'POST',
-                            headers: { "Content-Type": "text/plain;charset=utf-8" },
-                            body: JSON.stringify(assignPayload)
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.success) {
-                                alert(`Success! ${data.msg}`);
-                            } else {
-                                alert(`Auto-Assign Failed: ${data.error}`);
-                            }
-                        })
-                        .catch(e => alert("Auto-assign network request failed."));
+                    // --- NEW EXPLICIT ALERTS FOR AUTO-ASSIGNMENT ---
+                    if (decision === 'Accepted') {
+                        if (!window.payloadData.phone) {
+                            alert("⚠️ Notice: Route accepted, but this contractor does not have a phone number in your database. Tasks were NOT auto-assigned in Onfleet.");
+                        } else if (!window.payloadData.taskIds) {
+                            alert("⚠️ Notice: Route accepted, but no specific tasks were attached to this route link. Auto-assign skipped.");
+                        } else {
+                            // Both exist, run the assignment!
+                            const assignPayload = {
+                                action: "assignTasks",
+                                phone: window.payloadData.phone,
+                                taskIds: window.payloadData.taskIds
+                            };
+                            
+                            fetch(webAppUrl, {
+                                method: 'POST',
+                                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                                body: JSON.stringify(assignPayload)
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.success) {
+                                    alert(`✅ Success! ${data.msg}`);
+                                } else {
+                                    alert(`❌ Auto-Assign Failed: ${data.error}`);
+                                }
+                            })
+                            .catch(e => alert("❌ Auto-assign network request failed to reach Google."));
+                        }
                     }
 
                 } else {
