@@ -1106,11 +1106,20 @@
         function buildMapsUrl(limit) {
             if (!window.payloadData || !window.payloadData.locs) return null;
             const stops = window.payloadData.locs.split('|').slice(0, limit);
+            if (stops.length === 0) return null;
+            if (stops.length === 1) return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stops[0])}`;
+            
             const origin = encodeURIComponent(stops[0]);
             const dest = encodeURIComponent(stops[stops.length-1]);
-            const waypoints = stops.slice(1, -1).map(w => encodeURIComponent(w)).join('/');
-            return `https://www.google.com/maps/dir/${origin}/${waypoints}/${dest}/`;
+            
+            if (stops.length === 2) {
+                 return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}`;
+            }
+            
+            const waypoints = stops.slice(1, -1).map(w => encodeURIComponent(w)).join('|');
+            return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&waypoints=${waypoints}`;
         }
+        
         function viewRoute(limit) { const url = buildMapsUrl(limit); if (url) window.open(url, '_blank'); }
         function copyMapUrl() { const url = buildMapsUrl(25); if (url) { navigator.clipboard.writeText(url); alert("Link Copied"); } }
         
