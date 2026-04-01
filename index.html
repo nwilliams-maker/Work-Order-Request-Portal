@@ -274,9 +274,6 @@
         
         const webAppUrl = "https://script.google.com/macros/s/AKfycbwxVaO2L0hhtGCejNxSUEon9dFgeU8upvQo4h-sqiPHjwzpHSNjL9KiSWOrcU6vQHOmUw/exec"; 
         const formspreeUrl = "https://formspree.io/f/meerlqll"; 
-
-        // THIS IS THE MAIN EMAIL ON YOUR FORMSPREE ACCOUNT.
-        // It prevents the duplicate CC crashing error.
         const PRIMARY_FORMSPREE_EMAIL = "nwilliams@terraboost.biz";
 
         const podData = {
@@ -760,15 +757,55 @@
                     timeDisplay.innerText = "Calc...";
                     if (directionsRenderer) directionsRenderer.setDirections({routes: []}); 
                     
-                    const allPoints = [home, ...stops, home];
+                    // NEAREST NEIGHBOR SORTING ALGORITHM FOR 25+ STOPS
+                    let sortedStops = stops; 
+                    
+                    let homePos = null;
+                    const c = allContractors.find(ic => ic.address && ic.address.toLowerCase().trim() === home.toLowerCase().trim());
+                    if (c && c.lat && c.lng) {
+                        homePos = new google.maps.LatLng(c.lat, c.lng);
+                    } else {
+                        const firstMarker = allOnfleetMarkers.find(m => m.taskData.addr === stops[0]);
+                        if (firstMarker) homePos = firstMarker.getPosition();
+                    }
+
+                    if (homePos) {
+                        let unvisited = [];
+                        stops.forEach(addr => {
+                            let m = allOnfleetMarkers.find(marker => marker.taskData.addr === addr);
+                            if (m) unvisited.push({ addr: addr, pos: m.getPosition() });
+                        });
+                        
+                        if (unvisited.length === stops.length) {
+                            sortedStops = [];
+                            let currentPos = homePos;
+                            
+                            while (unvisited.length > 0) {
+                                let closestIdx = 0;
+                                let minDistance = Infinity;
+                                for (let i = 0; i < unvisited.length; i++) {
+                                    let dist = google.maps.geometry.spherical.computeDistanceBetween(currentPos, unvisited[i].pos);
+                                    if (dist < minDistance) {
+                                        minDistance = dist;
+                                        closestIdx = i;
+                                    }
+                                }
+                                sortedStops.push(unvisited[closestIdx].addr);
+                                currentPos = unvisited[closestIdx].pos;
+                                unvisited.splice(closestIdx, 1);
+                            }
+                        }
+                    }
+                    
+                    const allPoints = [home, ...sortedStops, home];
                     let totalMeters = 0;
                     let totalSeconds = 0;
                     const maxWaypoints = 25; 
                     let success = true;
 
-                    for (let i = 0; i < allPoints.length - 1; i += (maxWaypoints + 1)) {
+                    for (let i = 0; i < allPoints.length - 1; i += maxWaypoints) {
                         const origin = allPoints[i];
-                        const destIndex = Math.min(i + maxWaypoints + 1, allPoints.length - 1);
+                        const destIndex = Math.min(i + maxWaypoints, allPoints.length - 1);
                         const destination = allPoints[destIndex];
                         
                         const waypoints = [];
@@ -896,15 +933,21 @@
                     dispatcherEmail: document.getElementById('d_email').value 
                 };
 
-                const routeId = "R-" + Math.floor(10000 + Math.random() * 90000);
-                const payloadStr = JSON.stringify(d);
+                const postData = {
+                    action: "saveRoute",
+                    payload: d
+                };
 
-                const saveUrl = `${webAppUrl}?action=saveRoute&routeId=${routeId}&icn=${encodeURIComponent(d.icn)}&ice=${encodeURIComponent(d.ice)}&wo=${encodeURIComponent(d.wo)}&payload=${encodeURIComponent(payloadStr)}`;
+                const response = await fetch(webAppUrl, {
+                    method: 'POST',
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify(postData)
+                });
                 
-                const response = await fetch(saveUrl);
                 const result = await response.json();
                 
                 if (result.success) {
+                    const routeId = result.routeId; 
                     const tinyLink = `${window.location.origin}${window.location.pathname}?route=${routeId}`;
                     
                     const s = `Action Required: Terraboost Route Request | WO #${d.wo}`;
@@ -925,6 +968,7 @@
                 }
                 
             } catch (err) { 
+                console.error(err);
                 alert("Error saving route. Please ensure you deployed a New Version of your Google Script."); 
                 btn.disabled = false; btn.innerText = "Generate Authorization Link";
             }
@@ -1150,7 +1194,6 @@
                 "_subject": `${decision}: WO #${window.payloadData.wo} (${window.payloadData.icn})`
             };
 
-            // PREVENT DUPLICATE CC ERROR: Only add CC if it doesn't match the primary Formspree inbox
             const dispatcherEmail = window.payloadData.dispatcherEmail;
             if (dispatcherEmail && dispatcherEmail.toLowerCase() !== PRIMARY_FORMSPREE_EMAIL.toLowerCase()) {
                 formData["_cc"] = dispatcherEmail;
@@ -1168,17 +1211,26 @@
                     document.getElementById('successView').classList.remove('hidden');
 
                     if (decision === 'Accepted' && window.payloadData.phone && window.payloadData.taskIds) {
-                        const assignUrl = `${webAppUrl}?action=assignTasks&phone=${encodeURIComponent(window.payloadData.phone)}&taskIds=${encodeURIComponent(window.payloadData.taskIds)}`;
-                        fetch(assignUrl)
-                            .then(res => res.json())
-                            .then(data => {
-                                if (data.success) {
-                                    alert(`Success! ${data.msg}`);
-                                } else {
-                                    alert(`Auto-Assign Failed: ${data.error}`);
-                                }
-                            })
-                            .catch(e => alert("Auto-assign network request failed."));
+                        const assignPayload = {
+                            action: "assignTasks",
+                            phone: window.payloadData.phone,
+                            taskIds: window.payloadData.taskIds
+                        };
+                        
+                        fetch(webAppUrl, {
+                            method: 'POST',
+                            headers: { "Content-Type": "text/plain;charset=utf-8" },
+                            body: JSON.stringify(assignPayload)
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert(`Success! ${data.msg}`);
+                            } else {
+                                alert(`Auto-Assign Failed: ${data.error}`);
+                            }
+                        })
+                        .catch(e => alert("Auto-assign network request failed."));
                     }
 
                 } else {
