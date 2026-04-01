@@ -272,7 +272,8 @@
         let currentGlobalRate = 30; 
         let allContractors = [];
         
-        const webAppUrl = "https://script.google.com/macros/s/AKfycbyKfX9QtkZVWIUlroE8ak2pSZ4b50J9lFDvr_P6lEv7_yxcbWvblpEvZBPvBKpKVdq6wQ/exec"; 
+        // YOUR DEPLOYED GOOGLE SCRIPT URL
+        const webAppUrl = "https://script.google.com/macros/s/AKfycbwxVaO2L0hhtGCejNxSUEon9dFgeU8upvQo4h-sqiPHjwzpHSNjL9KiSWOrcU6vQHOmUw/exec"; 
         const formspreeUrl = "https://formspree.io/f/meerlqll"; 
         const PRIMARY_FORMSPREE_EMAIL = "nwilliams@terraboost.biz";
 
@@ -757,7 +758,6 @@
                     timeDisplay.innerText = "Calc...";
                     if (directionsRenderer) directionsRenderer.setDirections({routes: []}); 
                     
-                    // NEAREST NEIGHBOR SORTING ALGORITHM FOR 25+ STOPS
                     let sortedStops = stops; 
                     
                     let homePos = null;
@@ -1210,25 +1210,16 @@
                     document.getElementById('icMode').classList.add('hidden');
                     document.getElementById('successView').classList.remove('hidden');
 
-                    // --- NEW EXPLICIT ALERTS FOR AUTO-ASSIGNMENT ---
+                    // FIX: Moved assignment execution back to a GET request to avoid CORS blocking!
                     if (decision === 'Accepted') {
                         if (!window.payloadData.phone) {
-                            alert("⚠️ Notice: Route accepted, but this contractor does not have a phone number in your database. Tasks were NOT auto-assigned in Onfleet.");
+                            alert("⚠️ Route accepted, but the contractor is missing a phone number. Tasks were NOT auto-assigned in Onfleet.");
                         } else if (!window.payloadData.taskIds) {
-                            alert("⚠️ Notice: Route accepted, but no specific tasks were attached to this route link. Auto-assign skipped.");
+                            alert("⚠️ Route accepted, but no tasks were attached. Auto-assign skipped.");
                         } else {
-                            // Both exist, run the assignment!
-                            const assignPayload = {
-                                action: "assignTasks",
-                                phone: window.payloadData.phone,
-                                taskIds: window.payloadData.taskIds
-                            };
+                            const assignUrl = `${webAppUrl}?action=assignTasks&phone=${encodeURIComponent(window.payloadData.phone)}&taskIds=${encodeURIComponent(window.payloadData.taskIds)}`;
                             
-                            fetch(webAppUrl, {
-                                method: 'POST',
-                                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                                body: JSON.stringify(assignPayload)
-                            })
+                            fetch(assignUrl)
                             .then(res => res.json())
                             .then(data => {
                                 if (data.success) {
