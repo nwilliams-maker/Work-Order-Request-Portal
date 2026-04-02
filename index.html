@@ -134,7 +134,7 @@
                             </div>
                             
                             <div class="grid grid-cols-2 gap-3">
-                                <select id="podFilter" onchange="applyMapFilters()" class="py-2.5 px-3 text-[10px] font-bold uppercase cursor-pointer bg-white">
+                                <select id="podFilter" onchange="applyMapFilters()" class="py-2.5 px-3 text-[10px] font-bold uppercase cursor-pointer bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-500">
                                     <option value="All">🌎 All Pods</option>
                                     <option value="Orange">🟠 Orange Pod</option>
                                     <option value="Green">🟢 Green Pod</option>
@@ -143,10 +143,13 @@
                                     <option value="Purple">🟣 Purple Pod</option>
                                 </select>
                                 
-                                <label class="flex items-center justify-center gap-2 text-[10px] font-bold uppercase text-slate-700 cursor-pointer bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all select-none">
-                                    <input type="checkbox" id="digitalFilter" onchange="applyMapFilters()" class="w-3.5 h-3.5 text-blue-600 rounded"> 
-                                    Inc. Digital
-                                </label>
+                                <button type="button" id="digitalToggleBtn" value="Hide" onclick="toggleDigital()" class="py-2.5 px-3 text-[10px] font-bold uppercase cursor-pointer bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-700 flex justify-center items-center gap-1 select-none">
+                                    🚫 Hide Digital
+                                </button>
+                            </div>
+
+                            <div>
+                                <input type="text" id="keywordFilter" oninput="applyMapFilters()" placeholder="🔍 Keyword Filter (e.g. Name, Store, Phone)" class="w-full py-2.5 px-3 text-[10px] font-bold uppercase bg-white border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder-slate-400">
                             </div>
 
                             <div class="grid grid-cols-2 gap-3">
@@ -344,7 +347,7 @@
             
             if (query.length < 2) return; 
             
-            const matches = allContractors.filter(c => c.email.toLowerCase().includes(query.toLowerCase())).slice(0, 5);
+            const matches = allContractors.filter(c => c.email.toLowerCase().includes(query.toLowerCase())).slice(0, 3);
             
             matches.forEach(c => {
                 const opt = document.createElement('option');
@@ -353,9 +356,30 @@
             });
         }
 
+        function toggleDigital() {
+            const btn = document.getElementById('digitalToggleBtn');
+            if (btn.value === "Hide") {
+                btn.value = "Include";
+                btn.innerHTML = "➕ Inc. Digital";
+                btn.className = "py-2.5 px-3 text-[10px] font-bold uppercase cursor-pointer bg-blue-50 border border-blue-200 rounded-xl transition-all text-blue-700 flex justify-center items-center gap-1 select-none shadow-inner";
+            } else if (btn.value === "Include") {
+                btn.value = "Only";
+                btn.innerHTML = "🟣 Only Digital";
+                btn.className = "py-2.5 px-3 text-[10px] font-bold uppercase cursor-pointer bg-purple-50 border border-purple-200 rounded-xl transition-all text-purple-700 flex justify-center items-center gap-1 select-none shadow-inner";
+            } else {
+                btn.value = "Hide";
+                btn.innerHTML = "🚫 Hide Digital";
+                btn.className = "py-2.5 px-3 text-[10px] font-bold uppercase cursor-pointer bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-700 flex justify-center items-center gap-1 select-none";
+            }
+            applyMapFilters();
+        }
+
         function applyMapFilters() {
             const selectedPod = document.getElementById('podFilter').value;
-            const incDigital = document.getElementById('digitalFilter').checked;
+            const digitalMode = document.getElementById('digitalToggleBtn').value;
+            
+            const keywordEl = document.getElementById('keywordFilter');
+            const keyword = keywordEl ? keywordEl.value.toLowerCase().trim() : "";
 
             allOnfleetMarkers.forEach(marker => {
                 const task = marker.taskData;
@@ -376,7 +400,15 @@
 
                 let show = true;
                 if (selectedPod !== "All" && task.pod !== selectedPod) show = false;
-                if (task.isDigital && !incDigital) show = false;
+                
+                if (digitalMode === "Hide" && task.isDigital) show = false;
+                if (digitalMode === "Only" && !task.isDigital) show = false;
+
+                if (keyword !== "" && task.searchString) {
+                    if (!task.searchString.includes(keyword)) {
+                        show = false;
+                    }
+                }
 
                 marker.setVisible(show);
             });
@@ -385,6 +417,13 @@
                 const ic = marker.icData;
                 let show = true;
                 if (selectedPod !== "All" && ic.pod !== selectedPod) show = false;
+                
+                if (keyword !== "" && ic.searchString) {
+                    if (!ic.searchString.includes(keyword)) {
+                        show = false;
+                    }
+                }
+
                 marker.setVisible(show);
             });
         }
@@ -565,6 +604,8 @@
                     else if (task.isKiosk) pinColor = "#10b981";
                     else if (task.isDigital) pinColor = "#8b5cf6";
 
+                    task.searchString = task.rawSearch || JSON.stringify(task).toLowerCase();
+
                     const marker = new google.maps.Marker({
                         position: taskLatLng,
                         map: map,
@@ -608,8 +649,7 @@
                         if (d.kioskCount > 0) entry += ` [${d.kioskCount} Kiosk Install]`;
                         if (d.digitalCount > 0) entry += ` [${d.digitalCount} Digital Service]`;
                         
-                        let standardTasks = d.count - d.kioskCount - d.digitalCount;
-                        if (standardTasks > 0) entry += ` (${standardTasks} Tasks)`;
+                        entry += ` (${d.count} Tasks)`;
                         return entry;
                     }).join('\n');
                     
@@ -652,8 +692,7 @@
                 if (d.kioskCount > 0) entry += ` [${d.kioskCount} Kiosk Install]`;
                 if (d.digitalCount > 0) entry += ` [${d.digitalCount} Digital Service]`;
                 
-                let standardTasks = d.count - d.kioskCount - d.digitalCount;
-                if (standardTasks > 0) entry += ` (${standardTasks} Tasks)`;
+                entry += ` (${d.count} Tasks)`;
                 return entry;
             }).join('\n');
 
@@ -717,11 +756,16 @@
 
                     let lineKiosks = kMatch ? parseInt(kMatch[1]) : (line.toLowerCase().includes('kiosk install') ? 1 : 0);
                     let lineDigital = dMatch ? parseInt(dMatch[1]) : (line.toLowerCase().includes('digital service') ? 1 : 0);
-                    let lineTasks = tMatch ? parseInt(tMatch[1]) : 0;
                     
-                    if (!tMatch && !kMatch && !dMatch && lineKiosks === 0 && lineDigital === 0) lineTasks = 1;
+                    let lineTasks = 0;
+                    if (tMatch) {
+                        lineTasks = parseInt(tMatch[1]);
+                    } else {
+                        let explicitSpecials = lineKiosks + lineDigital;
+                        lineTasks = explicitSpecials > 0 ? explicitSpecials : 1;
+                    }
                     
-                    totalT += (lineTasks + lineKiosks + lineDigital);
+                    totalT += lineTasks;
                     totalK += lineKiosks;
                     totalD += lineDigital;
                 });
@@ -1086,6 +1130,8 @@
                                     }
                                 }
                                 c.pod = matchedPod;
+                                
+                                c.searchString = JSON.stringify(c).toLowerCase();
                             });
 
                             allContractors.forEach(c => {
@@ -1149,12 +1195,22 @@
             document.getElementById('time_display').innerText = "--";
             document.getElementById('comp').placeholder = "0.00";
             document.getElementById('dispatch_notes').value = "";
+            
+            const digitalBtn = document.getElementById('digitalToggleBtn');
+            if(digitalBtn) {
+                digitalBtn.value = "Hide";
+                digitalBtn.innerHTML = "🚫 Hide Digital";
+                digitalBtn.className = "py-2.5 px-3 text-[10px] font-bold uppercase cursor-pointer bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-700 flex justify-center items-center gap-1 select-none";
+            }
+            
             updateBadges(0, 0, 0, 0);
             if (directionsRenderer) directionsRenderer.setDirections({routes: []});
             localStorage.clear(); 
             
             const inputs = document.querySelectorAll('input, select, textarea');
             inputs.forEach(el => clearError(el));
+            
+            applyMapFilters();
         }
 
         function toggleDecisionView() {
