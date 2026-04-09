@@ -201,8 +201,50 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
            f"Metrics:\n- Unique Stops: {stop_count}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
            f"STOP LOCATIONS:\n" + "\n".join(loc_lines) + f"\n\nAuthorize here:\n{PORTAL_BASE_URL}?route={link_id}&v2=true")
     
-    # 🎯 FIX: tied key to sel_ic['Name'] to ensure refresh on change
     st.text_area("Email Payload Preview", sig, height=250, key=f"area_{i}_{pod_name}_{sel_ic['Name']}")
+
+    # --- EMAIL & SYNC BUTTONS INJECTION ---
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if not real_gas_id:
+            if st.button("☁️ Sync Work Order", key=f"sync_btn_{i}_{pod_name}"):
+                payload = {
+                    "icn": sel_ic['Name'],
+                    "ice": sel_ic['Email'],
+                    "wo": wo_title,
+                    "comp": pay,
+                    "lCnt": stop_count,
+                    "tCnt": len(cluster['data']),
+                    "mi": mi,
+                    "time": t_str,
+                    "locs": " | ".join(list(loc_sum.keys())),
+                    "taskIds": ",".join([t['id'] for t in cluster['data']])
+                }
+                res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
+                if res.get("success"):
+                    st.session_state[sync_key] = res.get("routeId")
+                    st.rerun()
+        else:
+            st.button("✅ Data Synced", disabled=True, key=f"synced_{i}_{pod_name}")
+
+    with col2:
+        if real_gas_id:
+            encoded_sig = requests.utils.quote(sig)
+            gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={sel_ic['Email']}&su=Route Request: {wo_title}&body={encoded_sig}"
+            
+            st.markdown(f"""
+                <a href="{gmail_url}" target="_blank" style="text-decoration: none;">
+                    <div style="text-align: center; background-color: {TB_GREEN}; color: white; padding: 10px; border-radius: 6px; font-weight: 700; border: 1px solid #5d911a;">
+                        🚀 OPEN GMAIL NOW
+                    </div>
+                </a>
+            """, unsafe_allow_html=True)
+            
+            if st.button("✔️ Mark Sent Permanently", key=f"mksent_{i}_{pod_name}"):
+                requests.post(GAS_WEB_APP_URL, json={"action": "markSent", "routeId": real_gas_id})
+                st.session_state[sent_key] = {"contractor": sel_ic['Name'], "time": datetime.now().strftime("%I:%M %p")}
+                st.rerun()
 
 def run_pod_tab(pod_name):
     st.markdown(f"<h2>{pod_name} Command Center</h2>", unsafe_allow_html=True)
