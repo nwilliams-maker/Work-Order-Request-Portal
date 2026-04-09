@@ -18,14 +18,13 @@ IC_SHEET_URL = "https://docs.google.com/spreadsheets/d/1y6wX0x93iDc3gdK_nZKLD-2Q
 
 MAX_DEADHEAD_MILES = 60
 HOURLY_FLOOR_RATE = 25.00
-THRESHOLD_CAP = 22.00 # The limit for automatic "Ready" categorization
+THRESHOLD_CAP = 22.00 
 TB_PURPLE = "#633094"
 TB_GREEN = "#76bc21"
 TB_RED = "#ef4444"
 TB_BLUE = "#3b82f6"
 TB_LIGHT_BLUE = "#e6f0fa"
 
-# State and Pod Maps remain unchanged...
 POD_CONFIGS = {
     "Blue Pod": {"states": {"AL", "AR", "FL", "IL", "IA", "LA", "MI", "MN", "MS", "MO", "NC", "SC", "WI"}, "color": "blue"},
     "Green Pod": {"states": {"CO", "DC", "GA", "IN", "KY", "MD", "NJ", "OH", "UT"}, "color": "green"},
@@ -57,6 +56,21 @@ st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
     .stApp {{ background-color: #f4f5f7 !important; color: #000000 !important; font-family: 'Roboto', sans-serif !important; }}
+    
+    /* Expander Header Styling: Light Blue Background, Dark Text */
+    div[data-testid="stExpander"] {{ border: 1px solid #d0d4e4 !important; border-radius: 8px !important; margin-bottom: 12px; }}
+    div[data-testid="stExpander"] details summary {{ 
+        background-color: {TB_LIGHT_BLUE} !important; 
+        color: #1e293b !important;
+        padding: 12px !important; 
+        border-radius: 8px 8px 0 0 !important; 
+    }}
+    div[data-testid="stExpander"] details summary p {{ 
+        color: #1e293b !important; 
+        font-weight: 700 !important; 
+        font-size: 16px !important; 
+    }}
+
     div[data-testid="stWidgetLabel"] p {{ color: #000000 !important; font-weight: 700 !important; font-size: 14px !important; opacity: 1 !important; }}
     div[data-testid="stTextArea"] textarea {{ color: #000000 !important; background-color: #FFFFFF !important; border: 1px solid #323338 !important; font-weight: 600 !important; opacity: 1 !important; }}
     div[data-testid="stTextArea"] label p {{ color: #000000 !important; font-weight: 800 !important; }}
@@ -71,6 +85,7 @@ st.markdown(f"""
     .stTabs [aria-selected="true"] {{ color: {TB_PURPLE} !important; border-bottom: 3px solid {TB_GREEN} !important; }}
     .stButton>button {{ background-color: {TB_PURPLE} !important; color: #FFFFFF !important; font-weight: 700 !important; border-radius: 6px !important; width: 100%; }}
     .stButton>button:hover {{ background-color: {TB_GREEN} !important; }}
+    
     #status {{ display: none !important; }}
     [data-testid="stStatusWidget"] {{ display: none !important; }}
     </style>
@@ -105,13 +120,8 @@ def get_metrics(home, cluster_nodes, stop_rate):
     unique_addrs = list(set([c['full_addr'] for c in cluster_nodes]))
     mi, hrs, t_str = fetch_gmaps_directions(home, tuple(unique_addrs[:10]))
     stop_count = len(unique_addrs)
-    
-    # PAY CALCULATOR: Higher of stop rate or hourly floor
     pay = max(stop_count * stop_rate, hrs * HOURLY_FLOOR_RATE)
-    
-    # Logic for categorization later: check if effectively paying > $22/stop
     effective_per_stop = pay / stop_count if stop_count > 0 else 0
-    
     return round(mi, 1), t_str, round(pay, 2), round(effective_per_stop, 2)
 
 def sync_to_sheet(ic, cluster_data, mi, time_str, pay, work_order, loc_sum, due_date):
@@ -202,15 +212,12 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     ic_opts = {f"{row['Name']} ({round(row['d'], 1)} mi)": row for _, row in valid_ics.iterrows()}
     c_ic, c_rate, c_due = st.columns([2, 1, 1])
     sel_label = c_ic.selectbox("Contractor", list(ic_opts.keys()), key=f"s_{i}_{pod_name}")
-    
-    # UPDATED: Cursor can go past 22
     rate = c_rate.number_input("Rate/Stop", 16.0, 100.0, 18.0, 0.5, key=f"r_{i}_{pod_name}")
     due = c_due.date_input("Due Date", datetime.now().date() + timedelta(days=14), key=f"d_{i}_{pod_name}")
     
     sel_ic = ic_opts[sel_label]
     mi, t_str, pay, effective_rate = get_metrics(sel_ic['Location'], cluster['data'], rate)
     
-    # DYNAMIC COLOR WARNING: Red if effective rate > $22/stop
     box_color = TB_RED if effective_rate > THRESHOLD_CAP else "#f8fafc"
     text_color = "white" if effective_rate > THRESHOLD_CAP else "black"
     label_color = "white" if effective_rate > THRESHOLD_CAP else "#444444"
@@ -261,17 +268,14 @@ def run_pod_tab(pod_name):
         c_h = hashlib.md5("".join(sorted([t['id'] for t in c['data']])).encode()).hexdigest()
         if f"sent_log_{c_h}" in st.session_state: sent.append(c); continue
         
-        # 1. Contractor Range Check
         has_ic = False
         if not v_ics.empty:
             has_ic = v_ics.apply(lambda x: haversine(c['center'][0], c['center'][1], x['Lat'], x['Lng']), axis=1).le(MAX_DEADHEAD_MILES).any()
         
-        # 2. EFFICIENCY LOGIC: Check if it's over $22/stop based on Hourly Floor
         mi, hrs, _ = fetch_gmaps_directions(f"{c['center'][0]},{c['center'][1]}", tuple([d['full_addr'] for d in c['data'][:5]]))
         calc_pay = max(c['unique_count'] * 18.0, hrs * HOURLY_FLOOR_RATE)
         eff_rate = calc_pay / c['unique_count'] if c['unique_count'] > 0 else 0
         
-        # Categorize: Must have IC AND be <= $22/stop to be "Ready"
         if has_ic and eff_rate <= THRESHOLD_CAP: ready.append(c)
         else: review.append(c)
 
