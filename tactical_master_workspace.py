@@ -272,55 +272,76 @@ def process_pod_data(pod_name):
 
 # --- UI RENDER FUNCTIONS ---
 def render_dispatch_logic(i, cluster, pod_name):
-    # 🎯 Identify this exact cluster group
+    # 🎯 Identify this unique cluster group
     cluster_hash = hashlib.md5("".join(sorted([t['id'] for t in cluster['data']])).encode()).hexdigest()
     sync_key = f"sync_{cluster_hash}"
+    
+    # Check session state: Did we already get an ID from Google for this specific route?
     real_gas_id = st.session_state.get(sync_key, None)
 
-    # 🎯 THE FIX: Use real ID if available, otherwise placeholder
-    link_id = real_gas_id if real_gas_id else "LINK_GENERATED_UPON_SYNC"
-
+    # 📋 Metadata Prep
     loc_sum = {}
     for c in cluster['data']:
         addr = c['full_addr']
         loc_sum[addr] = loc_sum.get(addr, 0) + 1
-    for addr, count in loc_sum.items(): st.markdown(f"- **{addr}** ({count} Tasks)")
+    
+    for addr, count in loc_sum.items(): 
+        st.markdown(f"- **{addr}** ({count} Tasks)")
     st.divider()
 
+    # --- Contractor Selection ---
     ic_df = st.session_state.ic_df
-    v_ics = ic_df[
-        ~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].copy()
-    v_ics['Lat'] = pd.to_numeric(v_ics['Lat'], errors='coerce');
-    v_ics['Lng'] = pd.to_numeric(v_ics['Lng'], errors='coerce')
+    v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].copy()
+    v_ics['Lat'] = pd.to_numeric(v_ics['Lat'], errors='coerce'); v_ics['Lng'] = pd.to_numeric(v_ics['Lng'], errors='coerce')
     v_ics = v_ics.dropna(subset=['Lat', 'Lng'])
-
     c_lat, c_lon = cluster['center']
     v_ics['d'] = v_ics.apply(lambda x: haversine(c_lat, c_lon, x['Lat'], x['Lng']), axis=1)
     valid_ics = v_ics[v_ics['d'] <= MAX_DEADHEAD_MILES].sort_values('d').head(5)
-
+    
     if valid_ics.empty:
-        st.error(f"⚠️ No contractors within {MAX_DEADHEAD_MILES} miles.")
+        st.error("⚠️ No contractors nearby.")
         return
 
     ic_opts = {f"{row['Name']} ({round(row['d'], 1)} mi)": row for _, row in valid_ics.iterrows()}
-    cluster_state = cluster['data'][0].get('state', 'Unknown')
-    suggested_rate = float(GEO_PRICING.get(cluster_state, 16.0))
-
     col_ic, col_rate, col_due = st.columns([2, 1, 1])
     sel_label = col_ic.selectbox("Contractor", options=list(ic_opts.keys()), key=f"sel_{i}_{pod_name}")
-    rate = col_rate.number_input("Rate/Stop", 16.0, 22.0, min(22.0, suggested_rate), 0.5, key=f"rate_{i}_{pod_name}")
+    rate = col_rate.number_input("Rate/Stop", 16.0, 22.0, 18.0, 0.5, key=f"rate_{i}_{pod_name}")
     due = col_due.date_input("Due Date", datetime.now().date() + timedelta(days=14), key=f"due_{i}_{pod_name}")
-
+    
     sel_ic = ic_opts[sel_label]
     mi, t_str, pay, hr_rate, p_type = get_metrics(sel_ic['Location'], cluster['data'], rate)
-
+    
     today_str = datetime.now().strftime("%m%d%Y")
-    # 🎯 THIS is what needs to be recorded in the 'WO' column in Google Sheets
     work_order_title = f"{sel_ic['Name']} - {today_str}-{i}"
     loc_lines = [f"{idx + 1}. {a} ({count} Tasks)" for idx, (a, count) in enumerate(loc_sum.items())]
 
-    # 🎯 Link used in the Email Text Area
-    sig = (
+    # --- 🔘 PHASE 1: SYNC (Before real ID exists) ---
+    if not real_gas_id:
+        st.warning("⚠️ Data must be synced to the cloud before emailing.")
+        if st.button("☁️ Step 1: Sync Data to Cloud", key=f"sync_btn_{i}_{pod_name}"):
+            with st.spinner("Talking to Google Sheets..."):
+                returned_id = sync_to_sheet(sel_ic, cluster['data'], mi, t_str, pay, work_order_title, loc_sum, due)
+                if returned_id:
+                    st.session_state[sync_key] = returned_id
+                    st.rerun() # Refresh to show Phase 2
+                else:
+                    st.error("Sync failed. Check Google Apps Script deployment.")
+        
+        # We show a DISABLED placeholder button so they know what's coming
+        st.markdown("""
+            <div style="background-color: #e2e8f0; color: #94a3b8; padding: 15px; text-align: center; border-radius: 8px; font-weight: bold; cursor: not-allowed;">
+                📧 Step 2: Send Email (Locked)
+            </div>
+        """, unsafe_allow_html=True)
+
+    # --- 🔘 PHASE 2: EMAIL (After real ID is returned) ---
+    else:
+        st.success(f"✅ Synced Successfully! Route ID: {real_gas_id}")
+        
+        # Link now uses the ACTUAL ID from Google
+        final_link = f"{PORTAL_BASE_URL}?route={real_gas_id}&v2=true"
+        
+        sig = (
             f"Work Order: {work_order_title}\n"
             f"Contractor: {sel_ic['Name']}\n"
             f"Due Date: {due.strftime('%A, %b %d, %Y')}\n\n"
@@ -328,26 +349,28 @@ def render_dispatch_logic(i, cluster, pod_name):
             f"- Unique Stops: {cluster['unique_count']}\n"
             f"- Mileage: {mi} mi\n"
             f"- Time: {t_str}\n"
-            f"- Compensation: ${pay:.2f} (Est. ${hr_rate:.2f}/hr)\n\n"
-            f"STOP LOCATIONS:\n" + "\n".join(loc_lines) +
-            f"\n\nAuthorize here:\n{PORTAL_BASE_URL}?route={link_id}&v2=true"
-    )
-
-    st.text_area("Secure Email Payload", sig, height=250,
-                 key=f"txt_{i}_{pod_name}_{sel_ic['Name']}_{rate}_{due}_{link_id}")
-
-    if real_gas_id: st.success(f"✅ Synced! Portal Link active for: **{real_gas_id}**")
-
-    btn_text = "Sync & Dispatch" if not real_gas_id else "Generate New Sync"
-    if st.button(btn_text, key=f"btn_{i}_{pod_name}"):
-        with st.spinner("Syncing to Google Sheets..."):
-            # 🎯 We pass work_order_title here so Google Sheets stores it correctly
-            returned_id = sync_to_sheet(sel_ic, cluster['data'], mi, t_str, pay, work_order_title, loc_sum, due)
-            if returned_id:
-                st.session_state[sync_key] = returned_id
-                st.rerun()
-            else:
-                st.error("❌ Sync Failed.")
+            f"- Compensation: ${pay:.2f}\n\n"
+            f"Authorize here:\n{final_link}"
+        )
+        
+        # Update the text area with the VERIFIED link
+        st.text_area("Final Email Content", sig, height=220, key=f"area_{i}_{pod_name}_{real_gas_id}")
+        
+        email_subject = f"Action Required: Route Request | {work_order_title}"
+        mailto_link = f"https://mail.google.com/mail/?view=cm&fs=1&to={sel_ic['Email']}&su={requests.utils.quote(email_subject)}&body={requests.utils.quote(sig)}"
+        
+        # Verified green button appears
+        st.markdown(f"""
+            <a href="{mailto_link}" target="_blank" style="text-decoration: none;">
+                <div style="background-color: #76bc21; color: white; padding: 18px; text-align: center; border-radius: 8px; font-weight: 800; cursor: pointer; border: 2px solid #5e961a;">
+                    📧 Step 2: Send Gmail to {sel_ic['Name']}
+                </div>
+            </a>
+        """, unsafe_allow_html=True)
+        
+        if st.button("Reset / Re-Sync", key=f"reset_{i}_{pod_name}"):
+            del st.session_state[sync_key]
+            st.rerun()
 
 def run_pod_tab(pod_name):
     st.header(f"{pod_name} Command Center")
