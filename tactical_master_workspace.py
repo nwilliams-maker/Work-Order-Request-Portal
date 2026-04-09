@@ -209,17 +209,18 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     with col1:
         if not real_gas_id:
             if st.button("☁️ Sync Work Order", key=f"sync_btn_{i}_{pod_name}"):
-                payload = {
-                    "icn": sel_ic['Name'],
-                    "ice": sel_ic['Email'],
-                    "wo": wo_title,
-                    "comp": pay,
-                    "lCnt": stop_count,
-                    "tCnt": len(cluster['data']),
-                    "mi": mi,
-                    "time": t_str,
-                    "locs": " | ".join(list(loc_sum.keys())),
-                    "taskIds": ",".join([t['id'] for t in cluster['data']])
+        payload = {
+            "icn": sel_ic['Name'],
+            "ice": sel_ic['Email'],
+            "wo": wo_title,
+            "due": due.strftime('%Y-%m-%d'),  # INJECTED: Sends the selected due date
+            "comp": pay,
+            "lCnt": stop_count,
+            "tCnt": len(cluster['data']),
+            "mi": mi,
+            "time": t_str,
+            "locs": " | ".join(list(loc_sum.keys())),
+            "taskIds": ",".join([t['id'] for t in cluster['data']])
                 }
                 res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
                 if res.get("success"):
