@@ -178,7 +178,7 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     mi, hrs, t_str = fetch_gmaps_directions(sel_ic['Location'], tuple(list(loc_sum.keys())[:10]))
     
     stop_count = cluster['unique_count']
-    pay = max(stop_count * rate, hrs * HOURLY_FLOOR_RATE)
+    pay = round(max(stop_count * rate, hrs * HOURLY_FLOOR_RATE), 2)
     eff_stop = pay / stop_count if stop_count > 0 else 0
     is_critical = eff_stop > REVIEW_PER_STOP_LIMIT
 
