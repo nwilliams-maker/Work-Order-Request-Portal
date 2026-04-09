@@ -1521,20 +1521,28 @@
                 "_subject": `${decision}: WO #${window.payloadData.wo} (${window.payloadData.icn})`
             };
 
-            const dispatcherEmail = window.payloadData.dispatcherEmail;
-            if (dispatcherEmail && dispatcherEmail.toLowerCase() !== PRIMARY_FORMSPREE_EMAIL.toLowerCase()) {
-                formData["_cc"] = dispatcherEmail;
-            }
+            // Formspree payload is clean. The script backend will handle the dispatcher email!
 
             try {
-                const response = await fetch(formspreeUrl, {
+                // We don't use Formspree anymore. We route everything cleanly to Google Script!
+                const postData = {
+                    action: "submitDecision",
+                    routeId: window.currentRouteId,
+                    decision: decision,
+                    notes: notes,
+                    counter: counter,
+                    signature: sig
+                };
+
+                const response = await fetch(webAppUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                    body: JSON.stringify(formData)
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify(postData)
                 });
                 
-                if (response.ok) {
-                    
+                const result = await response.json();
+                
+                if (result.success) {
                     if (decision === 'Accepted') {
                         if (!window.payloadData.phone) {
                             alert("⚠️ Route accepted, but the contractor is missing a phone number. Tasks were NOT auto-assigned in Onfleet.");
@@ -1557,29 +1565,17 @@
                                 alert("❌ Auto-assign network request failed to reach Google.");
                             }
                         }
-                        if (window.currentRouteId) {
-                            try {
-                                fetch(`${webAppUrl}?action=acceptRoute&routeId=${encodeURIComponent(window.currentRouteId)}`);
-                            } catch(e) {}
-                        }
-                    } else if (decision === 'Declined') {
-                        if (window.currentRouteId) {
-                            try {
-                                fetch(`${webAppUrl}?action=declineRoute&routeId=${encodeURIComponent(window.currentRouteId)}`);
-                            } catch(e) {}
-                        }
                     }
 
                     document.getElementById('icMode').classList.add('hidden');
                     document.getElementById('successView').classList.remove('hidden');
 
                 } else {
-                    const errText = await response.text();
-                    throw new Error(errText || "Formspree rejected the request.");
+                    throw new Error("Database rejected submission.");
                 }
             } catch (e) {
                 console.error(e);
-                alert("Submission failed to send to Formspree. Error: " + e.message);
+                alert("Submission failed. Error: " + e.message);
                 btn.disabled = false; 
                 btn.innerText = "Submit Final Response";
             }
