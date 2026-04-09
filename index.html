@@ -1489,10 +1489,7 @@
                 "_subject": `${decision}: WO #${window.payloadData.wo} (${window.payloadData.icn})`
             };
 
-            const dispatcherEmail = window.payloadData.dispatcherEmail;
-            if (dispatcherEmail && dispatcherEmail.toLowerCase() !== PRIMARY_FORMSPREE_EMAIL.toLowerCase()) {
-                formData["_cc"] = dispatcherEmail;
-            }
+            // REMOVED THE FORMSPREE CC FIELD THAT WAS CAUSING THE BLOCK
 
             try {
                 const response = await fetch(formspreeUrl, {
@@ -1542,11 +1539,14 @@
                     document.getElementById('successView').classList.remove('hidden');
 
                 } else {
-                    throw new Error();
+                    const errText = await response.text();
+                    throw new Error(errText || "Formspree rejected the request.");
                 }
             } catch (e) {
-                alert("Submission failed. Please try again.");
-                btn.disabled = false; btn.innerText = "Submit Final Response";
+                console.error(e);
+                alert("Submission failed to send to Formspree. Error: " + e.message);
+                btn.disabled = false; 
+                btn.innerText = "Submit Final Response";
             }
         }
     </script>
