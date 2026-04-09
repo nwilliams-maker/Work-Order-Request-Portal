@@ -1,324 +1,251 @@
-import streamlit as st
-import requests
-import base64
-import math
-import pandas as pd
-import time
-import hashlib
-from datetime import datetime, timedelta
-from streamlit_folium import st_folium
-import folium
-
-# --- CONFIG & CREDENTIALS ---
-ONFLEET_KEY = st.secrets["ONFLEET_KEY"]
-GOOGLE_MAPS_KEY = st.secrets["GOOGLE_MAPS_KEY"]
-PORTAL_BASE_URL = "https://nwilliams-maker.github.io/Route-Authorization-Portal/portal-v2.html"
-GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbynAIziubArSQ0hVGTvJMpk11a9yLP0kNcSmGpcY7GDNRT25Po5p92K3EDslx9VycKC/exec"
-IC_SHEET_URL = "https://docs.google.com/spreadsheets/d/1y6wX0x93iDc3gdK_nZKLD-2QcGkUHkcM75u90ffRO6k/edit#gid=0"
-
-MAX_DEADHEAD_MILES = 60
-HOURLY_FLOOR_RATE = 25.00
-REVIEW_PER_STOP_LIMIT = 23.00 
-
-TB_PURPLE = "#633094"
-TB_GREEN = "#76bc21"
-TB_RED = "#ef4444"
-TB_BLUE = "#3b82f6"
-TB_LIGHT_BLUE = "#e6f0fa"
-
-POD_CONFIGS = {
-    "Blue Pod": {"states": {"AL", "AR", "FL", "IL", "IA", "LA", "MI", "MN", "MS", "MO", "NC", "SC", "WI"}, "color": "blue"},
-    "Green Pod": {"states": {"CO", "DC", "GA", "IN", "KY", "MD", "NJ", "OH", "UT"}, "color": "green"},
-    "Orange Pod": {"states": {"AK", "AZ", "CA", "HI", "ID", "NV", "OR", "WA"}, "color": "orange"},
-    "Purple Pod": {"states": {"KS", "MT", "NE", "NM", "ND", "OK", "SD", "TN", "TX", "WY"}, "color": "purple"},
-    "Red Pod": {"states": {"CT", "DE", "ME", "MA", "NH", "NY", "PA", "RI", "VT", "VA", "WV"}, "color": "red"}
-}
-
-STATE_MAP = {
-    "ALABAMA": "AL", "ALASKA": "AK", "ARIZONA": "AZ", "ARKANSAS": "AR", "CALIFORNIA": "CA",
-    "COLORADO": "CO", "CONNECTICUT": "CT", "DELAWARE": "DE", "FLORIDA": "FL", "GEORGIA": "GA",
-    "HAWAII": "HI", "IDAHO": "ID", "ILLINOIS": "IL", "INDIANA": "IN", "IOWA": "IA",
-    "KANSAS": "KS", "KENTUCKY": "KY", "LOUISIANA": "LA", "MAINE": "ME", "MARYLAND": "MD",
-    "MASSACHUSETTS": "MA", "MICHIGAN": "MI", "MINNESOTA": "MN", "MISSISSIPPI": "MS",
-    "MISSOURI": "MO", "MONTANA": "MT", "NEBRASKA": "NE", "NEVADA": "NV", "NEW HAMPSHIRE": "NH",
-    "NEW JERSEY": "NJ", "NEW MEXICO": "NM", "NEW YORK": "NY", "NORTH CAROLINA": "NC",
-    "NORTH DAKOTA": "ND", "OHIO": "OH", "OKLAHOMA": "OK", "OREGON": "OR", "PENNSYLVANIA": "PA",
-    "RHODE ISLAND": "RI", "SOUTH CAROLINA": "SC", "SOUTH DAKOTA": "SD", "TENNESSEE": "TN",
-    "TEXAS": "TX", "UTAH": "UT", "VERMONT": "VT", "VIRGINIA": "VA", "WASHINGTON": "WA",
-    "WEST VIRGINIA": "WV", "WISCONSIN": "WI", "WYOMING": "WY", "DISTRICT OF COLUMBIA": "DC"
-}
-
-headers = {"Authorization": f"Basic {base64.b64encode(f'{ONFLEET_KEY}:'.encode()).decode()}"}
-
-st.set_page_config(page_title="Terraboost Tactical Workspace", layout="wide")
-
-# --- UI STYLING ---
-st.markdown(f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Order Dispatch | Terraboost Media</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCDYgNIGcfWPxoux2EILXr60ZK0fZYJPR4&libraries=geometry,drawing"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-    .stApp {{ background-color: #f4f5f7 !important; color: #000000 !important; font-family: 'Roboto', sans-serif !important; }}
-    h1, h2, h3 {{ color: {TB_PURPLE} !important; font-weight: 800 !important; }}
-    div[data-testid="stExpander"] {{ border: 1px solid #d0d4e4 !important; border-radius: 8px !important; margin-bottom: 12px; }}
-    div[data-testid="stExpander"] details summary {{ background-color: {TB_LIGHT_BLUE} !important; padding: 12px !important; border-radius: 8px 8px 0 0 !important; }}
-    div[data-testid="stExpander"] details summary p {{ color: #1e293b !important; font-weight: 700 !important; font-size: 16px !important; }}
-    div[data-testid="stWidgetLabel"] p {{ color: #000000 !important; font-weight: 700 !important; font-size: 14px !important; opacity: 1 !important; }}
-    .stTextInput input, .stNumberInput input, .stDateInput input, div[data-baseweb="select"] > div {{ background-color: #FFFFFF !important; color: #000000 !important; border: 1px solid #323338 !important; opacity: 1 !important; }}
-    div[data-testid="stTextArea"] textarea {{ color: #000000 !important; background-color: #FFFFFF !important; border: 1px solid #323338 !important; font-weight: 600 !important; opacity: 1 !important; }}
-    div[data-testid="stTextArea"] label p {{ color: #000000 !important; font-weight: 800 !important; }}
-    .metric-box {{ border-left: 5px solid {TB_PURPLE}; padding: 12px 15px; margin-bottom: 15px; background: white; border-radius: 0 4px 4px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-    .metric-title {{ font-size: 11px; text-transform: uppercase; color: #444444 !important; font-weight: 800; }}
-    .metric-value {{ font-size: 20px; color: {TB_PURPLE} !important; font-weight: 800; }}
-    .stTabs [data-baseweb="tab"] {{ color: #444444 !important; font-weight: 600 !important; }}
-    .stTabs [aria-selected="true"] {{ color: {TB_PURPLE} !important; border-bottom: 3px solid {TB_GREEN} !important; }}
-    
-    .gmail-link {{
-        display: block;
-        text-align: center;
-        background-color: {TB_GREEN} !important;
-        color: white !important;
-        padding: 10px;
-        border-radius: 6px;
-        text-decoration: none;
-        font-weight: 700;
-        margin-top: 10px;
-    }}
+        body { background-color: #f1f5f9; font-family: 'Inter', sans-serif; color: #0f172a; }
+        .brand-gradient { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+        .form-card { border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; background: #ffffff; }
+        label { color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem; display: block; margin-bottom: 8px; }
+        .signature-font { font-family: 'Dancing Script', cursive; font-size: 3.5rem; color: #0f172a; border-bottom: 2px solid #94a3b8; background: transparent; width: 100%; padding: 0; height: auto; line-height: 1; box-shadow: none !important; }
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #3b82f6; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .status-pill { border: 2px solid #e2e8f0; transition: all 0.2s; cursor: pointer; background: #f8fafc; }
+        input[type="radio"]:checked + .status-pill { border-color: currentColor; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); background: #ffffff; }
+        .btn-modern { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .no-print { display: block; }
+        @media print { .no-print { display: none !important; } }
     </style>
-""", unsafe_allow_html=True)
+</head>
+<body class="p-4 md:p-8 lg:p-12">
 
-# --- UTILITIES ---
-def normalize_state(st_str):
-    if not st_str: return "UNKNOWN"
-    clean = str(st_str).strip().upper()
-    return STATE_MAP.get(clean, clean)
-
-def haversine(lat1, lon1, lat2, lon2):
-    R = 3958.8
-    dlat, dlon = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
-    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
-    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-@st.cache_data(show_spinner=False, ttl=86400)
-def fetch_gmaps_directions(home, waypoints_tuple):
-    url = f"https://maps.googleapis.com/maps/api/directions/json?origin={home}&destination={home}&waypoints=optimize:true|{'|'.join(waypoints_tuple)}&key={GOOGLE_MAPS_KEY}"
-    mi, hrs, t_str = 0, 0, "0h 0m"
-    try:
-        res = requests.get(url).json()
-        if res['status'] == 'OK':
-            mi = sum(l['distance']['value'] for l in res['routes'][0]['legs']) * 0.000621371
-            hrs = sum(l['duration']['value'] for l in res['routes'][0]['legs']) / 3600
-            t_str = f"{int(hrs)}h {int((hrs * 60) % 60)}m"
-    except: pass
-    return round(mi, 1), hrs, t_str
-
-def get_metrics(home, cluster_nodes, stop_rate):
-    unique_addrs = list(set([c['full_addr'] for c in cluster_nodes]))
-    mi, hrs, t_str = fetch_gmaps_directions(home, tuple(unique_addrs[:10]))
-    stop_count = len(unique_addrs)
-    pay = max(stop_count * stop_rate, hrs * HOURLY_FLOOR_RATE)
-    eff_per_stop = pay / stop_count if stop_count > 0 else 0
-    return mi, t_str, round(pay, 2), round(eff_per_stop, 2)
-
-def sync_to_sheet(ic, cluster_data, mi, time_str, pay, work_order, loc_sum, due_date):
-    payload = {
-        "icn": str(ic.get('Name', '')), "ice": str(ic.get('Email', '')), "wo": work_order,
-        "due": due_date.strftime('%Y-%m-%d'), "comp": f"{pay:.2f}", "mi": str(mi),
-        "time": str(time_str), "locs": " | ".join([f"{a} ({c})" for a, c in loc_sum.items()]),
-        "lCnt": len(loc_sum), "tCnt": len(cluster_data), "phone": str(ic.get('Phone', '')),
-        "taskIds": ",".join([c['id'] for c in cluster_data]),
-        "status": "PENDING"
-    }
-    try:
-        res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}, allow_redirects=True)
-        if res.status_code == 200 and res.json().get("success"): return res.json().get("routeId")
-    except: pass
-    return False
-
-def mark_route_as_sent_in_sheet(route_id, contractor_name):
-    """Saves the SENT status to the Google Sheet permanently."""
-    payload = {"routeId": route_id, "status": "SENT", "sentAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-    try:
-        res = requests.post(GAS_WEB_APP_URL, json={"action": "updateStatus", "payload": payload})
-        return res.status_code == 200
-    except: return False
-
-@st.cache_data(ttl=600)
-def load_ic_database(sheet_url):
-    try: return pd.read_csv(f"{sheet_url.split('/edit')[0]}/export?format=csv&gid=0")
-    except: return None
-
-# --- PROCESSING ---
-def process_pod_data(pod_name):
-    config = POD_CONFIGS[pod_name]
-    ui_container = st.empty()
-    with ui_container.container():
-        p_bar = st.progress(0, text=f"📡 Synchronizing {pod_name}...")
-        all_tasks = []
-        url = f"https://onfleet.com/api/v2/tasks/all?state=0&from={int(time.time() * 1000) - (80 * 24 * 3600 * 1000)}"
-        while True:
-            res = requests.get(url, headers=headers)
-            if res.status_code != 200: break
-            data = res.json(); batch = data.get('tasks', [])
-            all_tasks.extend(batch)
-            if data.get('lastId') and len(batch) > 0:
-                url = f"https://onfleet.com/api/v2/tasks/all?state=0&from={int(time.time() * 1000) - (80 * 24 * 3600 * 1000)}&lastId={data['lastId']}"
-            else: break
-        pool = []
-        for t in all_tasks:
-            a = t.get('destination', {}).get('address', {})
-            stt = normalize_state(a.get('state', ''))
-            if stt in config['states']:
-                pool.append({"id": t['id'], "city": a.get('city', 'Unknown'), "state": stt,
-                    "full_addr": f"{a.get('number', '')} {a.get('street', '')}, {a.get('city', '')}, {stt}",
-                    "lat": t.get('destination', {}).get('location', [0, 0])[1],
-                    "lon": t.get('destination', {}).get('location', [0, 0])[0]})
-        clusters = []
-        while pool:
-            anchor = pool.pop(0)
-            group, unique_locs, rem = [anchor], {anchor['full_addr']}, []
-            for t in pool:
-                if haversine(anchor['lat'], anchor['lon'], t['lat'], t['lon']) <= 50.0:
-                    group.append(t); unique_locs.add(t['full_addr'])
-                else: rem.append(t)
-            pool = rem
-            clusters.append({"data": group, "center": [anchor['lat'], anchor['lon']], "unique_count": len(unique_locs), "city": anchor['city'], "state": anchor['state']})
-        st.session_state[f"clusters_{pod_name}"] = clusters
-        p_bar.progress(1.0, text="✅ Logic Applied")
-    ui_container.empty()
-
-# --- DISPATCH RENDER ---
-def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
-    cluster_hash = hashlib.md5("".join(sorted([t['id'] for t in cluster['data']])).encode()).hexdigest()
-    sync_key, sent_key = f"sync_{cluster_hash}", f"sent_log_{cluster_hash}"
-    real_gas_id = st.session_state.get(sync_key, None)
-    
-    loc_sum = {}
-    for c in cluster['data']:
-        addr = c['full_addr']; loc_sum[addr] = loc_sum.get(addr, 0) + 1
-    for addr, count in loc_sum.items(): st.markdown(f"• **{addr}** ({count} Tasks)")
-    st.divider()
-
-    if is_sent or sent_key in st.session_state:
-        log = st.session_state.get(sent_key, {"contractor": "Contractor", "time": "Previously"})
-        st.success(f"📧 **Status:** Sent to {log['contractor']} at {log['time']}")
-
-    ic_df = st.session_state.ic_df
-    v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].copy()
-    v_ics = v_ics.dropna(subset=['Lat', 'Lng'])
-    c_lat, c_lon = cluster['center']
-    if not v_ics.empty:
-        v_ics['d'] = v_ics.apply(lambda x: haversine(c_lat, c_lon, x['Lat'], x['Lng']), axis=1)
-        valid_ics = v_ics[v_ics['d'] <= MAX_DEADHEAD_MILES].sort_values('d').head(5)
-    else: valid_ics = pd.DataFrame()
-
-    if valid_ics.empty:
-        st.error("⚠️ No Independent Contractors nearby."); return
-
-    ic_opts = {f"{row['Name']} ({round(row['d'], 1)} mi)": row for _, row in valid_ics.iterrows()}
-    c_ic, c_rate, c_due = st.columns([2, 1, 1])
-    sel_label = c_ic.selectbox("Contractor", list(ic_opts.keys()), key=f"s_{i}_{pod_name}")
-    rate = c_rate.number_input("Rate/Stop", 16.0, 150.0, 18.0, 0.5, key=f"r_{i}_{pod_name}")
-    due = c_due.date_input("Due Date", datetime.now().date() + timedelta(days=14), key=f"d_{i}_{pod_name}")
-    
-    sel_ic = ic_opts[sel_label]
-    mi, t_str, pay, eff_stop = get_metrics(sel_ic['Location'], cluster['data'], rate)
-    
-    is_critical = eff_stop > REVIEW_PER_STOP_LIMIT
-    st.markdown(f"""
-        <div style="background-color: {TB_RED if is_critical else '#f8fafc'}; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
-            <span style="color: {'white' if is_critical else '#444444'}; font-weight: 800; font-size: 10px; text-transform: uppercase;">Financials</span><br>
-            <span style="color: {'white' if is_critical else 'black'}; font-weight: 700; font-size: 16px;">Comp: <span style="color: {TB_GREEN if not is_critical else '#ffcccc'};">${pay:.2f}</span></span> | 
-            <span style="color: {'white' if is_critical else 'black'}; font-weight: 600;">Time: {t_str}</span> | <span style="color: {'white' if is_critical else 'black'}; font-weight: 600;">Avg: ${eff_stop}/stop</span>
+    <div id="captureArea" class="max-w-[1400px] mx-auto form-card">
+        <div class="brand-gradient p-8 text-white flex justify-between items-center no-print">
+            <div class="flex items-center gap-6">
+                <div class="bg-white p-2.5 rounded-xl shadow-lg">
+                    <div class="bg-slate-900 text-white font-black text-3xl px-4 py-2 rounded-lg">TBM</div>
+                </div>
+                <div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">Terraboost Media</h1>
+                    <p class="text-blue-400 text-[10px] md:text-xs uppercase font-black tracking-[0.25em] opacity-90 mt-1">Route Authorization Portal</p>
+                </div>
+            </div>
         </div>
-    """, unsafe_allow_html=True)
 
-    link_id = real_gas_id if real_gas_id else "PENDING"
-    wo_title = f"{sel_ic['Name']} - {datetime.now().strftime('%m%d%Y')}-{i}"
-    loc_lines = [f"{idx + 1}. {a} ({count} Tasks)" for idx, (a, count) in enumerate(loc_sum.items())]
-    sig = (f"Work Order: {wo_title}\nContractor: {sel_ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
-           f"Metrics:\n- Unique Stops: {cluster['unique_count']}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
-           f"STOP LOCATIONS:\n" + "\n".join(loc_lines) + f"\n\nAuthorize here:\n{PORTAL_BASE_URL}?route={link_id}&v2=true")
-    
-    st.text_area("Email Payload Preview", sig, height=250, key=f"area_{i}_{pod_name}_{sel_ic['Name']}_{rate}")
+        <form id="dispatchForm" class="p-6 md:p-10 lg:p-12 space-y-12">
+            <div id="icMode" class="space-y-12">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                    
+                    <div class="lg:col-span-5 space-y-8">
+                        <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/40 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                            <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Route Authorization</h3>
+                            <div id="summaryZone" class="space-y-4 text-sm text-slate-700"></div>
+                        </div>
+                        
+                        <div class="space-y-4 no-print">
+                            <button type="button" onclick="viewRoute(11)" class="btn-modern w-full bg-slate-900 text-white font-black py-4 rounded-xl shadow-lg uppercase tracking-widest text-xs flex justify-center items-center gap-2">
+                                <span>🗺️</span> View Route Preview
+                            </button>
+                            <button type="button" onclick="copyMapUrl()" class="btn-modern w-full bg-white border-2 border-slate-200 text-slate-600 hover:text-blue-600 font-black py-4 rounded-xl text-[10px] uppercase tracking-[0.15em] flex justify-center items-center gap-2">
+                                <span>🔗</span> Copy Browser Link
+                            </button>
+                        </div>
+                    </div>
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if not real_gas_id:
-            if st.button("☁️ Sync Data", key=f"btn_s_{i}_{pod_name}"):
-                rid = sync_to_sheet(sel_ic, cluster['data'], mi, t_str, pay, wo_title, loc_sum, due)
-                if rid: st.session_state[sync_key] = rid; st.rerun()
-        else: st.button("✅ Synced to Sheet", disabled=True)
-    with col2:
-        if real_gas_id:
-            mail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={sel_ic['Email']}&su=Route Request | {wo_title}&body={requests.utils.quote(sig)}"
-            st.markdown(f'<a href="{mail_url}" target="_blank" class="gmail-link">📧 OPEN GMAIL NOW</a>', unsafe_allow_html=True)
-            if st.button("✔️ Mark as Sent (Saves to Webpage)", key=f"mark_sent_{i}"):
-                 if mark_route_as_sent_in_sheet(real_gas_id, sel_ic['Name']):
-                    st.session_state[sent_key] = {"contractor": sel_ic['Name'], "time": datetime.now().strftime("%I:%M %p")}
-                    st.rerun()
-        else:
-            st.info("Sync to enable email.")
+                    <div class="lg:col-span-7 space-y-8 bg-white p-8 md:p-10 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/40">
+                        <div class="grid grid-cols-2 gap-5">
+                            <label class="relative">
+                                <input type="radio" name="ic_decision" value="Accepted" class="sr-only" checked onchange="toggleDecisionView()">
+                                <div class="status-pill text-center py-5 rounded-2xl text-emerald-600 font-black text-xs uppercase tracking-widest">Accept Route</div>
+                            </label>
+                            <label class="relative">
+                                <input type="radio" name="ic_decision" value="Declined" class="sr-only" onchange="toggleDecisionView()">
+                                <div class="status-pill text-center py-5 rounded-2xl text-red-600 font-black text-xs uppercase tracking-widest">Decline Route</div>
+                            </label>
+                        </div>
 
-def run_pod_tab(pod_name):
-    st.markdown(f"<h2>{pod_name} Command Center</h2>", unsafe_allow_html=True)
-    if f"clusters_{pod_name}" not in st.session_state:
-        if st.button(f"📥 Initialize {pod_name}", key=f"init_{pod_name}"): process_pod_data(pod_name); st.rerun()
-        return
-    clusters = st.session_state[f"clusters_{pod_name}"]
-    ic_df = st.session_state.ic_df
-    v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']) if ic_df is not None else pd.DataFrame()
-    ready, review, sent = [], [], []
-    for c in clusters:
-        c_h = hashlib.md5("".join(sorted([t['id'] for t in c['data']])).encode()).hexdigest()
-        if f"sent_log_{c_h}" in st.session_state: sent.append(c); continue
-        has_ic = v_ics.apply(lambda x: haversine(c['center'][0], c['center'][1], x['Lat'], x['Lng']), axis=1).le(MAX_DEADHEAD_MILES).any() if not v_ics.empty else False
-        _, hrs, _ = fetch_gmaps_directions(f"{c['center'][0]},{c['center'][1]}", tuple([d['full_addr'] for d in c['data'][:10]]))
-        gate_avg = (hrs * HOURLY_FLOOR_RATE) / c['unique_count'] if c['unique_count'] > 0 else 0
-        if has_ic and gate_avg <= REVIEW_PER_STOP_LIMIT: ready.append(c)
-        else: review.append(c)
+                        <div id="reason_block" class="hidden space-y-6 pt-4">
+                            <div><label>Counter Offer ($) (Optional)</label><input type="number" id="ic_counter_val" placeholder="0.00" style="width:100%; padding:14px; border-radius:12px; border:1px solid #cbd5e1;"></div>
+                            <div><label>Reason for Decline / Notes</label><textarea id="ic_notes" rows="4" style="width:100%; padding:14px; border-radius:12px; border:1px solid #cbd5e1;"></textarea></div>
+                        </div>
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.markdown(f"<div class='metric-box'><div class='metric-title'>Total</div><div class='metric-value'>{len(clusters)}</div></div>", unsafe_allow_html=True)
-    c2.markdown(f"<div class='metric-box'><div class='metric-title' style='color:{TB_GREEN}'>Ready</div><div class='metric-value'>{len(ready)}</div></div>", unsafe_allow_html=True)
-    c3.markdown(f"<div class='metric-box'><div class='metric-title' style='color:{TB_BLUE}'>Sent</div><div class='metric-value'>{len(sent)}</div></div>", unsafe_allow_html=True)
-    c4.markdown(f"<div class='metric-box'><div class='metric-title' style='color:#f44336'>Review</div><div class='metric-value'>{len(review)}</div></div>", unsafe_allow_html=True)
-    if c5.button("🔄 Refresh", key=f"ref_{pod_name}"): process_pod_data(pod_name); st.rerun()
+                        <div id="signature_block" class="pt-4">
+                            <label class="text-blue-600 font-black mb-6 uppercase text-[10px] tracking-widest">Electronic Signature</label>
+                            <input type="text" id="typed_sig" placeholder="Click Here, Type Legal Name" class="signature-font" oninput="updateLiveSignature(this.value)">
+                            
+                            <div class="flex items-start gap-4 p-6 bg-blue-50/50 rounded-2xl border border-blue-100 mt-8">
+                                <input type="checkbox" id="legal_consent" class="mt-1 h-5 w-5 rounded text-blue-600 cursor-pointer">
+                                <label for="legal_consent" class="normal-case font-medium text-xs text-slate-700 leading-relaxed cursor-pointer select-none">
+                                    I, <span id="live_sig_text" class="text-blue-800 font-black italic border-b border-blue-200 px-1">________________</span>, hereby certify that I am an Independent Contractor.
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4">
+                            <button type="button" id="submitBtn" onclick="submitFinalResponse()" class="btn-modern bg-blue-600 text-white font-black py-6 rounded-2xl shadow-xl text-sm uppercase tracking-[0.2em] w-full">Submit Final Response</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="successView" class="hidden text-center py-32">
+                <div class="text-7xl mb-6">✅</div>
+                <h2 class="text-4xl font-black uppercase text-slate-900 tracking-tight">Response Recorded</h2>
+                <p class="text-slate-500 mt-4 font-medium">You may now close this window.</p>
+            </div>
+        </form>
+    </div>
 
-    m = folium.Map(location=clusters[0]['center'], zoom_start=6, tiles="cartodbpositron")
-    for c in ready: folium.CircleMarker(c['center'], radius=10, color=TB_GREEN, fill=True, opacity=0.7).add_to(m)
-    for c in sent: folium.CircleMarker(c['center'], radius=10, color=TB_BLUE, fill=True, opacity=0.7).add_to(m)
-    for c in review: folium.CircleMarker(c['center'], radius=10, color="#f44336", fill=True, opacity=0.7).add_to(m)
-    st_folium(m, use_container_width=True, height=450, key=f"map_{pod_name}")
-    
-    t1, t2, t3 = st.tabs(["🟢 Ready", "📧 Sent", "🔴 Review"])
-    with t1:
-        for i, c in enumerate(ready):
-            with st.expander(f"📍 {c['city']}, {c['state']} | {c['unique_count']} Stops"): render_dispatch_logic(i, c, pod_name)
-    with t2:
-        for i, c in enumerate(sent):
-            with st.expander(f"✅ Sent | {c['city']}, {c['state']}"): render_dispatch_logic(i+500, c, pod_name, True)
-    with t3:
-        for i, c in enumerate(review):
-            with st.expander(f"🔴 Review Required | {c['city']}, {c['state']}"): render_dispatch_logic(i+1000, c, pod_name)
+    <script>
+        const webAppUrl = "https://script.google.com/macros/s/AKfycbynAIziubArSQ0hVGTvJMpk11a9yLP0kNcSmGpcY7GDNRT25Po5p92K3EDslx9VycKC/exec";
+        const formspreeUrl = "https://formspree.io/f/meerlqll";
+        const PRIMARY_FORMSPREE_EMAIL = "nwilliams@terraboost.biz";
 
-# --- GLOBAL TAB ---
-def run_global_tab():
-    st.markdown("## 🌎 Global Overview")
-    if st.button("🚀 Sync Global Workload"):
-        p_bar = st.progress(0, text="Initializing Network Sweep...")
-        pods = list(POD_CONFIGS.keys())
-        for idx, pod in enumerate(pods):
-            process_pod_data(pod)
-            p_bar.progress((idx + 1) / len(pods), text=f"Synced {pod}...")
-        st.success("Global Sync Complete!")
-        st.rerun()
+        window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const routeId = urlParams.get('route'); 
+            if (routeId) {
+                window.currentRouteId = routeId; 
+                document.getElementById('summaryZone').innerHTML = `<p class="text-slate-500 font-bold animate-pulse">Loading intelligence...</p>`;
+                
+                fetch(`${webAppUrl}?action=getRoute&routeId=${routeId}`)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.error) {
+                            document.getElementById('summaryZone').innerHTML = `<div class="text-red-500 font-bold">⚠️ ${res.error}</div>`;
+                            return;
+                        }
+                        const d = res.payload; window.payloadData = d;
+                        
+                        let html = `
+                            <div class="flex justify-between border-b border-slate-100 pb-3 mb-3 font-bold uppercase text-[10px] tracking-widest text-slate-400"><span>Route Summary</span></div>
+                            <div class="flex justify-between border-b border-slate-100 pb-3 mb-3"><span>Contractor:</span> <span class="font-bold text-slate-900">${d.icn}</span></div>
+                            <div class="flex justify-between text-blue-600 font-bold pb-3 mb-3 border-b border-slate-100"><span>Work Order #:</span> <span>${d.wo}</span></div>
+                            <div class="flex justify-between pb-3 mb-3 border-b border-slate-100"><span>Due Date:</span> <span class="font-bold text-slate-900">${d.due || 'N/A'}</span></div>
+                            <div class="flex justify-between pb-3 mb-3 border-b border-slate-100"><span>Unique Locations:</span> <span class="font-bold text-slate-900">${d.lCnt}</span></div>
+                            <div class="flex justify-between pb-3 mb-3 border-b border-slate-100"><span>Total Tasks:</span> <span class="font-bold text-slate-900">${d.tCnt}</span></div>
+                            <div class="flex justify-between text-emerald-600 font-bold pb-3 mb-3 border-b border-slate-100"><span>Kiosk Installs:</span> <span>${d.kCnt || 0}</span></div>
+                            <div class="flex justify-between pb-3 mb-3 border-b border-slate-100"><span>Est. Drive Time:</span> <span class="font-bold text-slate-900">${d.time}</span></div>
+                            <div class="flex justify-between pb-3 mb-3"><span>Mileage:</span> <span class="font-medium">${d.mi} Miles</span></div>
+                            <div class="flex justify-between border-t border-slate-200 pt-4 mt-2 font-black text-3xl text-emerald-600"><span>Total Comp:</span> <span>$${d.comp}</span></div>
+                        `;
+                        document.getElementById('summaryZone').innerHTML = html;
+                    });
+            }
+        };
 
-# --- MAIN ---
-if "ic_df" not in st.session_state: st.session_state.ic_df = load_ic_database(IC_SHEET_URL)
-st.markdown("<h1>Dispatch Command Center</h1>", unsafe_allow_html=True)
-tabs = st.tabs(["🌎 Global Overview", "🔵 Blue Pod", "🟢 Green Pod", "🟠 Orange Pod", "🟣 Purple Pod", "🔴 Red Pod"])
-with tabs[0]: run_global_tab()
-with tabs[1]: run_pod_tab("Blue Pod")
-with tabs[2]: run_pod_tab("Green Pod")
-with tabs[3]: run_pod_tab("Orange Pod")
-with tabs[4]: run_pod_tab("Purple Pod")
-with tabs[5]: run_pod_tab("Red Pod")
+        async function submitFinalResponse() {
+            const decision = document.querySelector('input[name="ic_decision"]:checked').value;
+            const sig = document.getElementById('typed_sig').value;
+            const consent = document.getElementById('legal_consent').checked;
+            const counter = document.getElementById('ic_counter_val').value;
+            const notes = document.getElementById('ic_notes').value;
+
+            if (decision === 'Accepted' && (!sig || !consent)) return alert("Signature and consent required.");
+            
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true; 
+            btn.innerHTML = "<span class='spinner inline-block w-4 h-4 border-2 mr-2' style='border-top-color:transparent;'></span> Saving Response...";
+
+            const locationList = (window.payloadData.jobOnly ? window.payloadData.jobOnly.split('|') : []).map((loc, i) => `${i + 1}. ${loc}`).join('\n');
+            
+            let emailDate = 'N/A';
+            if (window.payloadData.due) {
+                const parts = window.payloadData.due.split('-');
+                emailDate = parts.length === 3 ? `${parts[1]}/${parts[2]}/${parts[0]}` : window.payloadData.due;
+            }
+
+            // 1. FORMSPREE PREPARATION
+            const formData = new FormData();
+            formData.append("name", window.payloadData.icn || "Contractor");
+            formData.append("email", window.payloadData.ice || "test@terraboost.biz"); 
+            formData.append("_replyto", window.payloadData.ice || "test@terraboost.biz");
+            formData.append("_subject", `${decision}: WO #${window.payloadData.wo} (${window.payloadData.icn})`);
+            formData.append("Decision", decision);
+            formData.append("Contractor", window.payloadData.icn);
+            formData.append("Work Order", window.payloadData.wo);
+            formData.append("Due Date", emailDate);
+            formData.append("Locations", window.payloadData.lCnt);
+            formData.append("Tasks", window.payloadData.tCnt);
+            formData.append("Kiosks", window.payloadData.kCnt);
+            formData.append("Digital", window.payloadData.dCnt || 0);
+            formData.append("Mileage", window.payloadData.mi);
+            formData.append("Original Comp", `$${window.payloadData.comp}`);
+            formData.append("Counter Offer", counter ? `$${counter}` : "N/A");
+            formData.append("Dispatcher Notes", window.payloadData.notes || "None");
+            formData.append("IC Notes", notes || "None");
+            formData.append("Signature", sig || "N/A");
+            formData.append("TASK LOCATION LIST", "\n" + locationList);
+
+            const dispatcherEmail = window.payloadData.dispatcherEmail;
+            if (dispatcherEmail && dispatcherEmail.toLowerCase() !== PRIMARY_FORMSPREE_EMAIL.toLowerCase()) {
+                formData.append("_cc", dispatcherEmail); 
+            }
+
+            try {
+                // 2. SEND TO FORMSPREE
+                const formspreeRes = await fetch(formspreeUrl, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' },
+                    body: formData
+                });
+                
+                if (!formspreeRes.ok) throw new Error("Formspree rejected the request.");
+
+                // 3. SEND TO GOOGLE APPS SCRIPT (Decision Logic + Onfleet)
+                const isV2 = new URLSearchParams(window.location.search).get('v2') === 'true';
+                
+                const gasPayload = {
+                    action: isV2 ? "submitDecisionV2" : "processDecision",
+                    routeId: window.currentRouteId,
+                    decision: decision,
+                    phone: window.payloadData.phone,
+                    taskIds: window.payloadData.taskIds,
+                    formData: isV2 ? Object.fromEntries(formData) : null, // Only send full form data if using V2 Direct Email
+                    dispatcherEmail: dispatcherEmail
+                };
+
+                const gasRes = await fetch(webAppUrl, {
+                    method: 'POST',
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify(gasPayload)
+                });
+
+                const result = await gasRes.json();
+
+                if (result.success) {
+                    if (decision === 'Accepted' && result.onfleetMsg) {
+                        console.log(`✅ Onfleet: ${result.onfleetMsg}`);
+                    }
+                    document.getElementById('icMode').classList.add('hidden');
+                    document.getElementById('successView').classList.remove('hidden');
+                } else {
+                    throw new Error("Google Script failed to process.");
+                }
+
+            } catch (e) {
+                alert("Submission failed. Please try again.");
+                btn.disabled = false; btn.innerText = "Submit Final Response";
+            }
+        }
+
+        function buildMapsUrl(limit) {
+            if (!window.payloadData || !window.payloadData.locs) return null;
+            const stops = window.payloadData.locs.split('|').slice(0, limit);
+            const origin = encodeURIComponent(stops[0]); const dest = encodeURIComponent(stops[stops.length-1]);
+            const waypoints = stops.slice(1, -1).map(w => encodeURIComponent(w)).join('|');
+            return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&waypoints=${waypoints}`;
+        }
+        function viewRoute(limit) { const url = buildMapsUrl(limit); if (url) window.open(url, '_blank'); }
+        function copyMapUrl() { const url = buildMapsUrl(25); if (url) { navigator.clipboard.writeText(url); alert("Link Copied"); } }
+        function toggleDecisionView() { const d = document.querySelector('input[name="ic_decision"]:checked').value; document.getElementById('reason_block').classList.toggle('hidden', d !== 'Declined'); document.getElementById('signature_block').classList.toggle('hidden', d === 'Declined'); }
+        function updateLiveSignature(v) { document.getElementById('live_sig_text').innerText = v || "________________"; }
+    </script>
+</body>
+</html>
