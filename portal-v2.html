@@ -123,7 +123,7 @@
                         }
                         const d = res.payload; window.payloadData = d;
                         
-                        let html = `
+                        document.getElementById('summaryZone').innerHTML = `
                             <div class="flex justify-between border-b border-slate-100 pb-3 mb-3 font-bold uppercase text-[10px] tracking-widest text-slate-400"><span>Route Summary</span></div>
                             <div class="flex justify-between border-b border-slate-100 pb-3 mb-3"><span>Contractor:</span> <span class="font-bold text-slate-900">${d.icn}</span></div>
                             <div class="flex justify-between text-blue-600 font-bold pb-3 mb-3 border-b border-slate-100"><span>Work Order #:</span> <span>${d.wo}</span></div>
@@ -135,7 +135,6 @@
                             <div class="flex justify-between pb-3 mb-3"><span>Mileage:</span> <span class="font-medium">${d.mi} Miles</span></div>
                             <div class="flex justify-between border-t border-slate-200 pt-4 mt-2 font-black text-3xl text-emerald-600"><span>Total Comp:</span> <span>$${d.comp}</span></div>
                         `;
-                        document.getElementById('summaryZone').innerHTML = html;
                     });
             }
         };
@@ -151,83 +150,37 @@
             
             const btn = document.getElementById('submitBtn');
             btn.disabled = true; 
-            btn.innerHTML = "<span class='spinner inline-block w-4 h-4 border-2 mr-2' style='border-top-color:transparent;'></span> Saving Response...";
-
-            const locationList = (window.payloadData.jobOnly ? window.payloadData.jobOnly.split('|') : []).map((loc, i) => `${i + 1}. ${loc}`).join('\n');
-            
-            let emailDate = 'N/A';
-            if (window.payloadData.due) {
-                const parts = window.payloadData.due.split('-');
-                emailDate = parts.length === 3 ? `${parts[1]}/${parts[2]}/${parts[0]}` : window.payloadData.due;
-            }
-
-            // 1. FORMSPREE PREPARATION
-            const formData = new FormData();
-            formData.append("name", window.payloadData.icn || "Contractor");
-            formData.append("email", window.payloadData.ice || "test@terraboost.biz"); 
-            formData.append("_replyto", window.payloadData.ice || "test@terraboost.biz");
-            formData.append("_subject", `${decision}: WO #${window.payloadData.wo} (${window.payloadData.icn})`);
-            formData.append("Decision", decision);
-            formData.append("Contractor", window.payloadData.icn);
-            formData.append("Work Order", window.payloadData.wo);
-            formData.append("Due Date", emailDate);
-            formData.append("Locations", window.payloadData.lCnt);
-            formData.append("Tasks", window.payloadData.tCnt);
-            formData.append("Kiosks", window.payloadData.kCnt);
-            formData.append("Digital", window.payloadData.dCnt || 0);
-            formData.append("Mileage", window.payloadData.mi);
-            formData.append("Original Comp", `$${window.payloadData.comp}`);
-            formData.append("Counter Offer", counter ? `$${counter}` : "N/A");
-            formData.append("Dispatcher Notes", window.payloadData.notes || "None");
-            formData.append("IC Notes", notes || "None");
-            formData.append("Signature", sig || "N/A");
-            formData.append("TASK LOCATION LIST", "\n" + locationList);
-
-            const dispatcherEmail = window.payloadData.dispatcherEmail;
-            if (dispatcherEmail && dispatcherEmail.toLowerCase() !== PRIMARY_FORMSPREE_EMAIL.toLowerCase()) {
-                formData.append("_cc", dispatcherEmail); 
-            }
+            btn.innerHTML = "Saving Response...";
 
             try {
-                // 2. SEND TO FORMSPREE
-                const formspreeRes = await fetch(formspreeUrl, {
-                    method: 'POST',
-                    headers: { 'Accept': 'application/json' },
-                    body: formData
-                });
-                
-                if (!formspreeRes.ok) throw new Error("Formspree rejected the request.");
-
-                // 3. SEND TO GOOGLE APPS SCRIPT (Decision Logic + Onfleet)
-                const isV2 = new URLSearchParams(window.location.search).get('v2') === 'true';
-                
                 const gasPayload = {
-                    action: isV2 ? "submitDecisionV2" : "processDecision",
+                    action: "authorizeRoute",
                     routeId: window.currentRouteId,
                     decision: decision,
-                    phone: window.payloadData.phone,
-                    taskIds: window.payloadData.taskIds,
-                    formData: isV2 ? Object.fromEntries(formData) : null, // Only send full form data if using V2 Direct Email
-                    dispatcherEmail: dispatcherEmail
+                    signature: sig,
+                    notes: notes
                 };
 
-                const gasRes = await fetch(webAppUrl, {
+                await fetch(webAppUrl, {
                     method: 'POST',
                     headers: { "Content-Type": "text/plain;charset=utf-8" },
                     body: JSON.stringify(gasPayload)
                 });
 
-                const result = await gasRes.json();
+                await fetch(formspreeUrl, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        _subject: `${decision}: WO #${window.payloadData.wo} (${window.payloadData.icn})`,
+                        Decision: decision,
+                        Contractor: window.payloadData.icn,
+                        "Work Order": window.payloadData.wo,
+                        Signature: sig
+                    })
+                });
 
-                if (result.success) {
-                    if (decision === 'Accepted' && result.onfleetMsg) {
-                        console.log(`✅ Onfleet: ${result.onfleetMsg}`);
-                    }
-                    document.getElementById('icMode').classList.add('hidden');
-                    document.getElementById('successView').classList.remove('hidden');
-                } else {
-                    throw new Error("Google Script failed to process.");
-                }
+                document.getElementById('icMode').classList.add('hidden');
+                document.getElementById('successView').classList.remove('hidden');
 
             } catch (e) {
                 alert("Submission failed. Please try again.");
@@ -238,9 +191,10 @@
         function buildMapsUrl(limit) {
             if (!window.payloadData || !window.payloadData.locs) return null;
             const stops = window.payloadData.locs.split('|').slice(0, limit);
-            const origin = encodeURIComponent(stops[0]); const dest = encodeURIComponent(stops[stops.length-1]);
-            const waypoints = stops.slice(1, -1).map(w => encodeURIComponent(w)).join('|');
-            return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&waypoints=${waypoints}`;
+            const origin = encodeURIComponent(stops[0]); 
+            const dest = origin; 
+            const waypoints = stops.slice(1).map(w => encodeURIComponent(w.trim())).join('|');
+            return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&waypoints=${waypoints}&travelmode=driving`;
         }
         function viewRoute(limit) { const url = buildMapsUrl(limit); if (url) window.open(url, '_blank'); }
         function copyMapUrl() { const url = buildMapsUrl(25); if (url) { navigator.clipboard.writeText(url); alert("Link Copied"); } }
