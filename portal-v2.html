@@ -302,8 +302,8 @@ def run_pod_tab(pod_name):
 
 # --- GLOBAL TAB ---
 def run_global_tab():
-    st.markdown("## 🌎 Global Network Overview")
-    if st.button("🚀 Sync Global Network"):
+    st.markdown("## 🌎 Global Overview")
+    if st.button("🚀 Sync Global Workload"):
         p_bar = st.progress(0, text="Initializing Network Sweep...")
         pods = list(POD_CONFIGS.keys())
         for idx, pod in enumerate(pods):
@@ -314,7 +314,7 @@ def run_global_tab():
 
 # --- MAIN ---
 if "ic_df" not in st.session_state: st.session_state.ic_df = load_ic_database(IC_SHEET_URL)
-st.markdown("<h1>Network Command Center</h1>", unsafe_allow_html=True)
+st.markdown("<h1>Dispatch Command Center</h1>", unsafe_allow_html=True)
 tabs = st.tabs(["🌎 Global Overview", "🔵 Blue Pod", "🟢 Green Pod", "🟠 Orange Pod", "🟣 Purple Pod", "🔴 Red Pod"])
 with tabs[0]: run_global_tab()
 with tabs[1]: run_pod_tab("Blue Pod")
