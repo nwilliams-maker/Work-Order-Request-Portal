@@ -293,7 +293,11 @@
         let allContractors = [];
         let activeCampaignFilter = ""; 
         
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // !!! PASTE YOUR NEW GOOGLE SCRIPT URL RIGHT HERE INSIDE THE QUOTES  !!!
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         const webAppUrl = "https://script.google.com/macros/s/AKfycbynAIziubArSQ0hVGTvJMpk11a9yLP0kNcSmGpcY7GDNRT25Po5p92K3EDslx9VycKC/exec"; 
+
         const formspreeUrl = "https://formspree.io/f/meerlqll"; 
         const PRIMARY_FORMSPREE_EMAIL = "nwilliams@terraboost.biz";
 
@@ -1230,8 +1234,9 @@
                 
             } catch (err) { 
                 console.error(err);
-                alert("Error saving route. Please ensure you deployed a New Version of your Google Script."); 
-                btn.disabled = false; btn.innerText = "Generate Authorization Link";
+                alert("Error saving route. Please ensure your Google Script is deployed as a New Version and 'Who has access' is set to 'Anyone'.\n\nError Details: " + err.message); 
+                btn.disabled = false; 
+                btn.innerText = "Generate Authorization Link";
             }
         }
 
@@ -1503,7 +1508,7 @@
             }
 
             const formData = {
-                "email": window.payloadData.ice, // <-- THE FIX: Bypasses Formspree's silent spam filter!
+                "email": window.payloadData.ice,
                 "Decision": decision,
                 "Contractor": window.payloadData.icn,
                 "Work Order": window.payloadData.wo,
