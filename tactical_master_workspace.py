@@ -50,25 +50,42 @@ headers = {"Authorization": f"Basic {base64.b64encode(f'{ONFLEET_KEY}:'.encode()
 
 st.set_page_config(page_title="Terraboost Tactical Workspace", layout="wide")
 
-# --- PERFECT UI STYLING PRESERVATION ---
+# --- UI STYLING (FIXED FOR HIGH CONTRAST & UI PRESERVATION) ---
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-    .stApp {{ background-color: #f4f5f7 !important; color: #323338 !important; font-family: 'Roboto', sans-serif !important; }}
-    h1, h2, h3 {{ color: {TB_PURPLE} !important; font-weight: 700 !important; font-family: 'Roboto', sans-serif !important; }}
+    
+    .stApp {{ background-color: #f4f5f7 !important; color: #000000 !important; font-family: 'Roboto', sans-serif !important; }}
+
+    /* Fix Faint Labels above Input Boxes */
+    div[data-testid="stWidgetLabel"] p {{ color: #000000 !important; font-weight: 700 !important; font-size: 14px !important; opacity: 1 !important; }}
+
+    /* Fix Faint Metric Values and Labels (Overview Cards) */
+    [data-testid="stMetricValue"] {{ color: #000000 !important; font-weight: 800 !important; }}
+    [data-testid="stMetricLabel"] p {{ color: #444444 !important; font-weight: 700 !important; text-transform: uppercase !important; }}
+
+    /* Metric Boxes (Route Financials) */
+    .metric-box {{ border-left: 5px solid {TB_PURPLE}; padding: 12px 15px; margin-bottom: 15px; background: white; border-radius: 0 4px 4px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+    .metric-title {{ font-size: 11px; text-transform: uppercase; color: #444444 !important; font-weight: 800; }}
+    .metric-value {{ font-size: 20px; color: {TB_PURPLE} !important; font-weight: 800; }}
+
+    /* Headers */
+    h1, h2, h3 {{ color: {TB_PURPLE} !important; font-weight: 800 !important; }}
+
+    /* Tabs and Expanders */
+    .stTabs [data-baseweb="tab"] {{ color: #444444 !important; font-weight: 600 !important; }}
+    .stTabs [aria-selected="true"] {{ color: {TB_PURPLE} !important; border-bottom: 3px solid {TB_GREEN} !important; }}
+    div[data-testid="stExpander"] {{ background-color: white !important; border: 1px solid #d0d4e4 !important; border-radius: 8px !important; margin-bottom: 12px; }}
+    div[data-testid="stExpander"] details summary p {{ color: #000000 !important; font-weight: 700 !important; font-size: 16px !important; }}
+    div[data-testid="stExpander"] details summary {{ background-color: {TB_LIGHT_BLUE} !important; padding: 12px !important; border-radius: 8px 8px 0 0 !important; }}
+
+    /* Button and Input Contrast */
+    .stButton>button {{ background-color: {TB_PURPLE} !important; color: #FFFFFF !important; font-weight: 700 !important; border-radius: 6px !important; width: 100%; }}
+    .stButton>button:hover {{ background-color: {TB_GREEN} !important; }}
+    .stTextInput input, .stNumberInput input, .stDateInput input, .stTextArea textarea {{ color: #000000 !important; border: 1px solid #999999 !important; font-weight: 500 !important; }}
+    
     #status {{ display: none !important; }}
     [data-testid="stStatusWidget"] {{ display: none !important; }}
-    .stTabs [data-baseweb="tab-list"] {{ gap: 24px; border-bottom: 1px solid #d0d4e4; }}
-    .stTabs [data-baseweb="tab"] {{ height: 50px; background-color: transparent; padding: 10px 16px; font-size: 16px; font-weight: 500; color: #676879; font-family: 'Roboto', sans-serif !important; }}
-    .stTabs [aria-selected="true"] {{ border-bottom: 3px solid {TB_GREEN}; color: {TB_PURPLE} !important; font-weight: 700; }}
-    .metric-box {{ border-left: 5px solid {TB_PURPLE}; padding: 10px 15px; margin-bottom: 15px; background: white; border-radius: 0 4px 4px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }}
-    .metric-title {{ font-size: 11px; text-transform: uppercase; color: #676879; font-weight: 600; font-family: 'Roboto', sans-serif !important; }}
-    .metric-value {{ font-size: 20px; color: {TB_PURPLE}; font-weight: 700; font-family: 'Roboto', sans-serif !important; }}
-    .stButton>button {{ background-color: {TB_PURPLE} !important; color: white !important; border: none !important; border-radius: 4px; font-weight: 600; font-family: 'Roboto', sans-serif !important; }}
-    .stButton>button:hover {{ background-color: {TB_GREEN} !important; }}
-    div[data-testid="stExpander"] {{ background-color: white !important; border: 1px solid #d0d4e4 !important; border-radius: 8px !important; margin-bottom: 12px; }}
-    div[data-testid="stExpander"] details summary {{ background-color: {TB_LIGHT_BLUE} !important; padding: 12px !important; border-radius: 8px 8px 0 0 !important; }}
-    .stTextInput input, .stNumberInput input, .stDateInput input, .stTextArea textarea {{ background-color: white !important; color: #323338 !important; border: 1px solid #d0d4e4 !important; font-family: 'Roboto', sans-serif !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -126,12 +143,12 @@ def load_ic_database(sheet_url):
     try: return pd.read_csv(f"{sheet_url.split('/edit')[0]}/export?format=csv&gid=0")
     except: return None
 
-# --- LOGIC ---
+# --- CORE PROCESSING LOGIC ---
 def process_pod_data(pod_name):
     config = POD_CONFIGS[pod_name]
     ui_container = st.empty()
     with ui_container.container():
-        p_bar = st.progress(0, text=f"📡 Syncing {pod_name}...")
+        p_bar = st.progress(0, text=f"📡 Synchronizing {pod_name}...")
         all_tasks = []
         url = f"https://onfleet.com/api/v2/tasks/all?state=0&from={int(time.time() * 1000) - (80 * 24 * 3600 * 1000)}"
         while True:
@@ -165,7 +182,7 @@ def process_pod_data(pod_name):
         p_bar.progress(1.0, text="✅ Logic Applied")
     ui_container.empty()
 
-# --- RENDER DISPATCH ---
+# --- UI RENDER FUNCTIONS ---
 def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     cluster_hash = hashlib.md5("".join(sorted([t['id'] for t in cluster['data']])).encode()).hexdigest()
     sync_key = f"sync_{cluster_hash}"
@@ -184,9 +201,8 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
         log = st.session_state[sent_key]
         st.info(f"📧 **Sent to:** {log['contractor']} | **Timestamp:** {log['time']}")
 
-    # --- CONTRACTOR LOOKUP (OMITTING FIELD AGENTS) ---
     ic_df = st.session_state.ic_df
-    # Filter out any row where "Field Agent" appears in the data
+    # Filtering: Exclude "Field Agent"
     v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].copy()
     v_ics = v_ics.dropna(subset=['Lat', 'Lng'])
     
@@ -203,28 +219,29 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     ic_opts = {f"{row['Name']} ({round(row['d'], 1)} mi)": row for _, row in valid_ics.iterrows()}
     c_ic, c_rate, c_due = st.columns([2, 1, 1])
     sel_label = c_ic.selectbox("Contractor", list(ic_opts.keys()), key=f"s_{i}_{pod_name}")
-    rate = c_rate.number_input("Rate", 16.0, 22.0, 18.0, 0.5, key=f"r_{i}_{pod_name}")
-    due = c_due.date_input("Due", datetime.now().date() + timedelta(days=14), key=f"d_{i}_{pod_name}")
+    rate = c_rate.number_input("Rate/Stop", 16.0, 22.0, 18.0, 0.5, key=f"r_{i}_{pod_name}")
+    due = c_due.date_input("Due Date", datetime.now().date() + timedelta(days=14), key=f"d_{i}_{pod_name}")
     
     sel_ic = ic_opts[sel_label]
     mi, t_str, pay, hr_rate, p_type = get_metrics(sel_ic['Location'], cluster['data'], rate)
     
     st.markdown(f"""
-        <div style="background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px; font-family: 'Roboto', sans-serif !important;">
-            <span style="color: #64748b; font-weight: 800; font-size: 10px; text-transform: uppercase;">Route Financials</span><br>
-            <span style="color: #0f172a; font-weight: 700; font-size: 16px;">Comp: <span style="color: #16a34a;">${pay:.2f}</span></span> | 
-            <span style="color: #0f172a; font-weight: 600;">Drive: {mi} mi</span> | <span style="color: #0f172a; font-weight: 600;">Time: {t_str}</span>
+        <div style="background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+            <span style="color: #444444; font-weight: 800; font-size: 10px; text-transform: uppercase;">Financials</span><br>
+            <span style="color: #000000; font-weight: 700; font-size: 16px;">Comp: <span style="color: #16a34a;">${pay:.2f}</span></span> | 
+            <span style="color: #000000; font-weight: 600;">Drive: {mi} mi</span> | <span style="color: #000000; font-weight: 600;">Time: {t_str}</span>
         </div>
     """, unsafe_allow_html=True)
 
-    sig = f"Work Order: {sel_ic['Name']} - {datetime.now().strftime('%m%d%Y')}-{i}\nDue Date: {due.strftime('%A, %b %d, %Y')}\nMetrics: {mi} mi, {t_str}\nComp: ${pay:.2f}\n\nAuthorize here:\n{PORTAL_BASE_URL}?route={link_id}&v2=true"
-    st.text_area("Email Payload Preview", sig, height=200, key=f"area_{i}_{pod_name}_{link_id}")
+    wo_title = f"{sel_ic['Name']} - {datetime.now().strftime('%m%d%Y')}-{i}"
+    sig = f"Work Order: {wo_title}\nDue Date: {due.strftime('%Y-%m-%d')}\nMetrics: {mi} mi, {t_str}\nPay: ${pay:.2f}\n\nAuthorize: {PORTAL_BASE_URL}?route={link_id}&v2=true"
+    st.text_area("Email Payload Preview", sig, height=180, key=f"area_{i}_{pod_name}_{link_id}")
 
     col1, col2 = st.columns(2)
     with col1:
         if not real_gas_id:
             if st.button("☁️ Sync Data", key=f"btn_s_{i}_{pod_name}"):
-                rid = sync_to_sheet(sel_ic, cluster['data'], mi, t_str, pay, f"{sel_ic['Name']} - {datetime.now().strftime('%m%d%Y')}-{i}", loc_sum, due)
+                rid = sync_to_sheet(sel_ic, cluster['data'], mi, t_str, pay, wo_title, loc_sum, due)
                 if rid: st.session_state[sync_key] = rid; st.rerun()
         else: st.button("✅ Synced", disabled=True, key=f"btn_d_{i}_{pod_name}")
     with col2:
@@ -237,14 +254,13 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
         else: st.markdown('<div style="background:#e2e8f0;color:#94a3b8;padding:10px;text-align:center;border-radius:4px;font-weight:bold;">📧 Sync First</div>', unsafe_allow_html=True)
 
 def run_pod_tab(pod_name):
-    st.markdown(f"<h2 style='font-family: Roboto !important;'>{pod_name} Command Center</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2>{pod_name} Command Center</h2>", unsafe_allow_html=True)
     if f"clusters_{pod_name}" not in st.session_state:
         if st.button(f"📥 Initialize {pod_name}", key=f"init_{pod_name}"): process_pod_data(pod_name); st.rerun()
         return
 
     clusters = st.session_state[f"clusters_{pod_name}"]
     ic_df = st.session_state.ic_df
-    # Filtering IC Database for categorization
     v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']) if ic_df is not None else pd.DataFrame()
     
     ready, review, sent = [], [], []
@@ -286,12 +302,12 @@ def run_pod_tab(pod_name):
             with st.expander(f"✅ Sent | {c['city']}, {c['state']} | {c['unique_count']} Stops"): render_dispatch_logic(i+500, c, pod_name, is_sent=True)
     with t3:
         for i, c in enumerate(review):
-            with st.expander(f"🔴 Review Required | {c['city']}, {c['state']} | {c['unique_count']} Stops"): render_dispatch_logic(i+1000, c, pod_name)
+            with st.expander(f"🔴 Review | {c['city']}, {c['state']} | {c['unique_count']} Stops"): render_dispatch_logic(i+1000, c, pod_name)
 
-# --- LAYOUT ---
+# --- MAIN ---
 if "ic_df" not in st.session_state: st.session_state.ic_df = load_ic_database(IC_SHEET_URL)
-st.markdown("<h1 style='font-family: Roboto !important;'>Dispatch Command Center</h1>", unsafe_allow_html=True)
-tabs = st.tabs(["🌎 Global Overview", "🔵 Blue Pod", "🟢 Green Pod", "🟠 Orange Pod", "🟣 Purple Pod", "🔴 Red Pod"])
+st.markdown("<h1>Dispatch Command Center</h1>", unsafe_allow_html=True)
+tabs = st.tabs(["🌎 Global", "🔵 Blue Pod", "🟢 Green Pod", "🟠 Orange Pod", "🟣 Purple Pod", "🔴 Red Pod"])
 with tabs[1]: run_pod_tab("Blue Pod")
 with tabs[2]: run_pod_tab("Green Pod")
 with tabs[3]: run_pod_tab("Orange Pod")
