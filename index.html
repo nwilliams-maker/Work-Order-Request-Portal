@@ -293,11 +293,7 @@
         let allContractors = [];
         let activeCampaignFilter = ""; 
         
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // !!! PASTE YOUR NEW GOOGLE SCRIPT URL RIGHT HERE INSIDE THE QUOTES  !!!
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         const webAppUrl = "https://script.google.com/macros/s/AKfycbynAIziubArSQ0hVGTvJMpk11a9yLP0kNcSmGpcY7GDNRT25Po5p92K3EDslx9VycKC/exec"; 
-
         const formspreeUrl = "https://formspree.io/f/meerlqll"; 
         const PRIMARY_FORMSPREE_EMAIL = "nwilliams@terraboost.biz";
 
@@ -560,40 +556,42 @@
 
             if (needGeocode.length === 0) return;
 
-            for (let i = 0; i < needGeocode.length; i++) {
-                const c = needGeocode[i];
-                
-                const cacheKey = 'tbm_geo_' + btoa(encodeURIComponent(c.address));
-                const cachedCoords = localStorage.getItem(cacheKey);
-                if (cachedCoords) {
-                    const coords = JSON.parse(cachedCoords);
-                    c.lat = coords.lat;
-                    c.lng = coords.lng;
-                    addICMarker(c);
-                    loadedICs++;
-                    updateCounter();
-                    continue; 
-                }
-
-                try {
-                    const res = await fetch(`${webAppUrl}?action=geocode&address=${encodeURIComponent(c.address)}`);
-                    const geoData = await res.json();
+            // PERFORMANCE FIX: Processes missing GPS coordinates 3x faster in parallel batches!
+            for (let i = 0; i < needGeocode.length; i += 3) {
+                const batch = needGeocode.slice(i, i + 3);
+                await Promise.all(batch.map(async (c) => {
+                    const cacheKey = 'tbm_geo_' + btoa(encodeURIComponent(c.address));
+                    const cachedCoords = localStorage.getItem(cacheKey);
                     
-                    if (geoData.success) {
-                        c.lat = geoData.lat;
-                        c.lng = geoData.lng;
-                        localStorage.setItem(cacheKey, JSON.stringify({lat: c.lat, lng: c.lng}));
+                    if (cachedCoords) {
+                        const coords = JSON.parse(cachedCoords);
+                        c.lat = coords.lat; 
+                        c.lng = coords.lng;
                         addICMarker(c);
+                        loadedICs++; 
+                        updateCounter();
+                        return; 
                     }
-                    
-                    loadedICs++;
-                    updateCounter();
-                    await new Promise(r => setTimeout(r, 200)); 
-                } catch (e) {
-                    console.warn("Geocode failed for: " + c.name);
-                    loadedICs++;
-                    updateCounter();
-                }
+
+                    try {
+                        const res = await fetch(`${webAppUrl}?action=geocode&address=${encodeURIComponent(c.address)}`);
+                        const geoData = await res.json();
+                        
+                        if (geoData.success) {
+                            c.lat = geoData.lat;
+                            c.lng = geoData.lng;
+                            localStorage.setItem(cacheKey, JSON.stringify({lat: c.lat, lng: c.lng}));
+                            addICMarker(c);
+                        }
+                        loadedICs++;
+                        updateCounter();
+                    } catch (e) {
+                        console.warn("Geocode failed for: " + c.name);
+                        loadedICs++;
+                        updateCounter();
+                    }
+                }));
+                await new Promise(r => setTimeout(r, 250)); // Small delay to protect Google Maps API
             }
         }
 
@@ -659,15 +657,27 @@
         }
 
         async function saveToDatabase() {
-            const p = { email: document.getElementById('ic_email_setup').value, name: document.getElementById('ic_name_setup').value, address: document.getElementById('ic_address').value };
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = true;
+            btn.innerText = "Saving...";
+            const p = { 
+                action: "updateContractor",
+                email: document.getElementById('ic_email_setup').value, 
+                name: document.getElementById('ic_name_setup').value, 
+                address: document.getElementById('ic_address').value 
+            };
             try { 
                 await fetch(webAppUrl, { 
                     method: 'POST', 
                     headers: { "Content-Type": "text/plain;charset=utf-8" },
                     body: JSON.stringify(p) 
                 }); 
-                document.getElementById('saveBtn').disabled = true; 
-            } catch (e) { alert("Save failed"); }
+                btn.innerText = "Saved";
+            } catch (e) { 
+                alert("Save failed"); 
+                btn.disabled = false;
+                btn.innerText = "Save";
+            }
         }
 
         function handleManualEdit() {
@@ -675,6 +685,7 @@
             btn.disabled = false;
             btn.classList.remove('opacity-30', 'grayscale', 'cursor-not-allowed');
             btn.classList.add('opacity-100');
+            btn.innerText = "Save";
         }
 
         async function fetchOnfleetTasks(isGlobal) {
@@ -1152,6 +1163,10 @@
             btn.disabled = true;
             btn.innerHTML = "<span class='spinner inline-block w-4 h-4 border-2 mr-2' style='border-top-color:transparent;'></span> SAVING ROUTE TO DATABASE...";
 
+            // PERFORMANCE FIX: Safety timeout aborts if Google is blocking the connection!
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); 
+
             try {
                 const dispatchNotes = document.getElementById('dispatch_notes').value.trim();
                 const jobListOnly = locationLines.join('|');
@@ -1183,9 +1198,11 @@
                 const response = await fetch(webAppUrl, {
                     method: 'POST',
                     headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify(postData)
+                    body: JSON.stringify(postData),
+                    signal: controller.signal
                 });
                 
+                clearTimeout(timeoutId);
                 const result = await response.json();
                 
                 if (result.success) {
@@ -1229,12 +1246,19 @@
                     btn.classList.add('bg-emerald-600');
                     setTimeout(() => { btn.disabled = false; btn.innerText = "Generate Authorization Link"; btn.classList.remove('bg-emerald-600'); }, 3000);
                 } else {
-                    throw new Error("Database rejected save.");
+                    throw new Error(result.error || "Database rejected save.");
                 }
                 
             } catch (err) { 
+                clearTimeout(timeoutId);
                 console.error(err);
-                alert("Error saving route. Please ensure your Google Script is deployed as a New Version and 'Who has access' is set to 'Anyone'.\n\nError Details: " + err.message); 
+                
+                if (err.name === 'AbortError') {
+                    alert("⚠️ Request timed out!\n\nGoogle Apps Script is not responding. Please open Google Apps Script, click 'Deploy > Manage Deployments > Edit', and make sure 'Who has access' is set to 'Anyone' (NOT 'Anyone with a Google Account').");
+                } else {
+                    alert("Error saving route:\n\n" + err.message); 
+                }
+                
                 btn.disabled = false; 
                 btn.innerText = "Generate Authorization Link";
             }
