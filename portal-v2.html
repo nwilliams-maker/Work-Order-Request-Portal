@@ -11,212 +11,116 @@
         .brand-gradient { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
         .form-card { border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; background: #ffffff; }
         label { color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem; display: block; margin-bottom: 8px; }
-        .signature-font { font-family: 'Dancing Script', cursive; font-size: 3.5rem; color: #0f172a; border-bottom: 2px solid #94a3b8; background: transparent; width: 100%; padding: 0; line-height: 1; height: auto; outline: none; }
-        .decision-pill { border: 2px solid #e2e8f0; background: #f8fafc; transition: all 0.2s; cursor: pointer; }
-        input[type="radio"]:checked + .decision-pill-accept { border-color: #76bc21; color: #76bc21; background: #fff; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
-        input[type="radio"]:checked + .decision-pill-decline { border-color: #ef4444; color: #ef4444; background: #fff; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
-        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #3b82f6; width: 24px; height: 24px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .signature-font { font-family: 'Dancing Script', cursive; font-size: 3.5rem; color: #0f172a; border-bottom: 2px solid #94a3b8; background: transparent; width: 100%; padding: 0; line-height: 1; outline: none; box-shadow: none !important; }
+        .status-pill { border: 2px solid #e2e8f0; transition: all 0.2s; cursor: pointer; background: #f8fafc; }
+        input[type="radio"]:checked + .status-pill { border-color: currentColor; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); background: #ffffff; }
     </style>
 </head>
-<body class="p-2 md:p-8 lg:p-12">
+<body class="p-4 md:p-12">
 
-    <div id="captureArea" class="max-w-[1200px] mx-auto form-card">
-        <div class="brand-gradient p-6 md:p-8 text-white flex justify-between items-center">
-            <div class="flex items-center gap-4 md:gap-6">
+    <div id="captureArea" class="max-w-[1400px] mx-auto form-card">
+        <div class="brand-gradient p-8 text-white flex justify-between items-center no-print">
+            <div class="flex items-center gap-6">
                 <div class="bg-white p-2.5 rounded-xl shadow-lg">
-                    <div class="bg-slate-900 text-white font-black text-2xl md:text-3xl px-4 py-2 rounded-lg">TBM</div>
+                    <div class="bg-slate-900 text-white font-black text-3xl px-4 py-2 rounded-lg">TBM</div>
                 </div>
                 <div>
-                    <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">Terraboost Media</h1>
-                    <p class="text-blue-400 text-[9px] md:text-[10px] uppercase font-black tracking-[0.2em] opacity-90 mt-1">Route Authorization Portal</p>
+                    <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">Terraboost Media</h1>
+                    <p class="text-blue-400 text-[10px] md:text-xs uppercase font-black tracking-[0.25em] opacity-90 mt-1">Route Authorization Portal</p>
                 </div>
             </div>
-            <button onclick="location.reload()" class="hidden md:block text-[10px] font-black text-slate-400 uppercase border border-slate-700 px-4 py-2 rounded-lg hover:bg-slate-800 transition">Reset Portal</button>
+            <button type="button" onclick="location.reload()" class="hidden md:block text-[10px] text-slate-400 font-bold border border-slate-700 px-4 py-2 rounded-lg hover:bg-slate-800">RESET PORTAL</button>
         </div>
 
-        <div id="loadingOverlay" class="py-32 text-center">
-            <div class="spinner border-slate-300 border-t-blue-500 mx-auto mb-4"></div>
-            <p class="font-bold text-slate-500 uppercase tracking-widest text-xs">Loading Intelligence...</p>
-        </div>
-
-        <form id="dispatchForm" class="hidden p-4 md:p-10 lg:p-12 space-y-12">
+        <form id="dispatchForm" class="p-6 md:p-10 lg:p-12 space-y-12">
             <div id="icMode" class="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 
                 <div class="lg:col-span-5 space-y-8">
-                    <div class="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/40 relative overflow-hidden">
+                    <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/40 relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
-                        
-                        <div class="space-y-6">
-                            <div class="space-y-1">
-                                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Route Authorization</h3>
-                                <p class="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Route Summary</p>
+                        <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Route Authorization</h3>
+                        <div id="summaryZone" class="space-y-4 text-sm font-medium">
                             </div>
-
-                            <div id="summaryZone" class="space-y-4 text-sm font-medium">
-                                </div>
-                        </div>
                     </div>
                     
                     <div class="space-y-4">
-                        <button type="button" onclick="launchMaps(11)" class="w-full bg-slate-900 text-white font-black py-4 rounded-xl shadow-lg uppercase tracking-widest text-[11px] flex justify-center items-center gap-3 hover:bg-black transition">
-                            <span>🗺️</span> View Route Preview <span class="opacity-50 text-[9px]">(Up to 11 stops)</span>
+                        <button type="button" onclick="viewRoute(11)" class="w-full bg-slate-900 text-white font-black py-4 rounded-xl shadow-lg uppercase tracking-widest text-xs flex justify-center items-center gap-2 hover:bg-black transition-all">
+                            <span>🗺️</span> View Route Preview
                         </button>
-                        <button type="button" onclick="copyFullLink()" class="w-full bg-white border-2 border-slate-100 text-slate-400 font-bold py-4 rounded-xl text-[10px] uppercase tracking-widest flex justify-center items-center gap-2 hover:border-slate-200 transition">
-                            <span>🔗</span> Copy Browser Link <span class="opacity-50">(Full Route)</span>
+                        <button type="button" onclick="copyMapUrl()" class="w-full bg-white border-2 border-slate-100 text-slate-400 font-bold py-4 rounded-xl text-[10px] uppercase tracking-widest flex justify-center items-center gap-2">
+                            <span>🔗</span> Copy Browser Link
                         </button>
                     </div>
                 </div>
 
-                <div class="lg:col-span-7 space-y-10">
-                    <div class="grid grid-cols-2 gap-4">
+                <div class="lg:col-span-7 space-y-8 bg-white p-8 md:p-10 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/40">
+                    <div class="grid grid-cols-2 gap-5">
                         <label class="relative">
-                            <input type="radio" name="ic_decision" value="Accepted" class="sr-only" checked onchange="toggleForm()">
-                            <div class="decision-pill decision-pill-accept text-center py-5 rounded-2xl text-emerald-600 font-black text-[11px] uppercase tracking-widest">Accept Route</div>
+                            <input type="radio" name="ic_decision" value="Accepted" class="sr-only" checked onchange="toggleView()">
+                            <div class="status-pill text-center py-5 rounded-2xl text-emerald-600 font-black text-xs uppercase tracking-widest">Accept Route</div>
                         </label>
                         <label class="relative">
-                            <input type="radio" name="ic_decision" value="Declined" class="sr-only" onchange="toggleForm()">
-                            <div class="decision-pill decision-pill-decline text-center py-5 rounded-2xl text-red-600 font-black text-[11px] uppercase tracking-widest">Decline Route</div>
+                            <input type="radio" name="ic_decision" value="Declined" class="sr-only" onchange="toggleView()">
+                            <div class="status-pill text-center py-5 rounded-2xl text-red-600 font-black text-xs uppercase tracking-widest">Decline Route</div>
                         </label>
-                    </div>
-
-                    <div id="declineBlock" class="hidden space-y-6">
-                        <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Reason / Notes</label>
-                        <textarea id="notes" rows="4" class="w-full p-4 rounded-2xl border border-slate-200 outline-none focus:border-blue-500 transition"></textarea>
                     </div>
 
                     <div id="acceptBlock" class="space-y-10">
                         <div class="space-y-4">
-                            <label class="text-blue-500 font-black uppercase text-[10px] tracking-[0.2em]">Electronic Signature</label>
-                            <input type="text" id="typed_sig" placeholder="Type Legal Name" class="signature-font" oninput="updateSig(this.value)">
+                            <label class="text-blue-600 font-black uppercase text-[10px] tracking-widest">Electronic Signature</label>
+                            <input type="text" id="typed_sig" placeholder="Type Legal Name" class="signature-font" oninput="document.getElementById('live_sig_text').innerText=this.value">
                         </div>
 
-                        <div class="flex items-start gap-4 p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                            <input type="checkbox" id="consent" class="mt-1 h-5 w-5 rounded border-slate-300 text-blue-500 focus:ring-blue-500 cursor-pointer">
-                            <label for="consent" class="text-[11px] font-medium text-slate-600 leading-relaxed cursor-pointer select-none">
-                                I, <span id="live_sig" class="text-blue-600 font-black border-b border-blue-600 px-1">________________</span>, hereby certify that I am an Independent Contractor. I have reviewed the proposed route locations and compensation.
+                        <div class="flex items-start gap-4 p-6 bg-blue-50/50 rounded-2xl border border-blue-100 mt-8">
+                            <input type="checkbox" id="legal_consent" class="mt-1 h-5 w-5 rounded text-blue-600">
+                            <label for="legal_consent" class="text-xs text-slate-700 leading-relaxed cursor-pointer select-none">
+                                I, <span id="live_sig_text" class="text-blue-800 font-black italic border-b border-blue-200 px-1">________________</span>, certify that I am an Independent Contractor.
                             </label>
                         </div>
                     </div>
-
-                    <button type="button" id="submitBtn" onclick="submitFinal()" class="w-full bg-blue-600 text-white font-black py-6 rounded-2xl shadow-2xl shadow-blue-200 uppercase tracking-[0.25em] text-sm hover:bg-blue-700 transition">
-                        Submit Final Response
-                    </button>
+                    
+                    <button type="button" onclick="submitFinal()" class="bg-blue-600 text-white font-black py-6 rounded-2xl shadow-xl text-sm uppercase tracking-[0.2em] w-full hover:bg-blue-700">Submit Final Response</button>
                 </div>
-            </div>
-
-            <div id="successView" class="hidden text-center py-32 space-y-4">
-                <div class="text-7xl">✅</div>
-                <h2 class="text-3xl font-black text-slate-900 uppercase tracking-tight">Response Recorded</h2>
-                <p class="text-slate-500 font-medium">Thank you. You may now close this window.</p>
             </div>
         </form>
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbynAIziubArSQ0hVGTvJMpk11a9yLP0kNcSmGpcY7GDNRT25Po5p92K3EDslx9VycKC/exec";
-        const FORMSPREE = "https://formspree.io/f/meerlqll";
+        const webAppUrl = "https://script.google.com/macros/s/AKfycbynAIziubArSQ0hVGTvJMpk11a9yLP0kNcSmGpcY7GDNRT25Po5p92K3EDslx9VycKC/exec";
         const params = new URLSearchParams(window.location.search);
         const routeId = params.get('route');
 
         window.onload = async () => {
-            if (!routeId) return document.getElementById('loadingOverlay').innerHTML = "Missing Route ID";
+            const res = await fetch(`${webAppUrl}?action=getRoute&routeId=${routeId}`);
+            const data = await res.json();
+            const d = data.payload; window.payloadData = d;
 
-            try {
-                const res = await fetch(`${GAS_URL}?action=getRoute&routeId=${routeId}`);
-                const data = await res.json();
-                if (data.error) throw new Error(data.error);
-                
-                const d = data.payload;
-                window.routeData = d;
-
-                document.getElementById('summaryZone').innerHTML = `
-                    <div class="flex justify-between items-center py-1"><span>Contractor:</span><span class="text-slate-900 font-bold">${d.icn}</span></div>
-                    <div class="flex justify-between items-center py-1 text-blue-600"><span>Work Order #:</span><span class="font-bold underline tracking-tight">${d.wo}</span></div>
-                    <div class="flex justify-between items-center py-1"><span>Due Date:</span><span class="text-slate-900 font-bold">${d.due || '---'}</span></div>
-                    <div class="flex justify-between items-center py-1"><span>Unique Locations:</span><span class="text-slate-900 font-bold">${d.lCnt}</span></div>
-                    <div class="flex justify-between items-center py-1"><span>Total Tasks:</span><span class="text-slate-900 font-bold">${d.tCnt}</span></div>
-                    <div class="flex justify-between items-center py-1 text-emerald-600"><span>Kiosk Installs:</span><span class="font-bold">0</span></div>
-                    <div class="flex justify-between items-center py-1"><span>Est. Drive Time:</span><span class="text-slate-900 font-bold">${d.time}</span></div>
-                    <div class="flex justify-between items-center py-1"><span>Mileage:</span><span class="text-slate-900 font-bold">${d.mi} Miles</span></div>
-                    <div class="flex justify-between items-center pt-6 mt-2 border-t border-slate-100 font-black text-5xl text-emerald-600 leading-none">
-                        <span>Total Comp:</span><span>$${d.comp}</span>
-                    </div>
-                `;
-
-                document.getElementById('loadingOverlay').classList.add('hidden');
-                document.getElementById('dispatchForm').classList.remove('hidden');
-            } catch (e) {
-                document.getElementById('loadingOverlay').innerHTML = `<p class="text-red-500 font-bold uppercase text-xs">Error: ${e.message}</p>`;
-            }
+            document.getElementById('summaryZone').innerHTML = `
+                <div class="flex justify-between border-b pb-2 mb-2 font-bold uppercase text-[9px] tracking-widest text-slate-300"><span>Summary</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-3 mb-3"><span>Contractor:</span> <span class="font-bold text-slate-900">${d.icn}</span></div>
+                <div class="flex justify-between text-blue-600 font-bold pb-3 mb-3 border-b border-slate-100"><span>Work Order #:</span> <span>${d.wo}</span></div>
+                <div class="flex justify-between pb-3 mb-3 border-b border-slate-100"><span>Stops:</span> <span class="font-bold text-slate-900">${d.lCnt}</span></div>
+                <div class="flex justify-between pb-3 mb-3"><span>Mileage:</span> <span class="font-medium">${d.mi} Miles</span></div>
+                <div class="flex justify-between border-t border-slate-200 pt-6 mt-2 font-black text-5xl text-emerald-600 leading-none"><span>Total:</span> <span>$${d.comp}</span></div>
+            `;
         };
 
-        // --- FIXED GOOGLE MAPS LOGIC ---
-        function buildMapsUrl(limit) {
-            if (!window.routeData || !window.routeData.locs) return null;
-            
-            // Logic: Start at Home -> Waypoints -> End at Home
-            const stops = window.routeData.locs.split(' | ');
-            const home = encodeURIComponent(window.routeData.ic_home || stops[0]); 
-            const waypointsList = stops.slice(0, limit);
-            const waypoints = waypointsList.map(s => encodeURIComponent(s)).join('|');
-            
+        // GOOGLE MAPS FIX: Origin and Destination are Home
+        function getMapsUrl(limit) {
+            const stops = window.payloadData.locs.split(' | ');
+            const home = encodeURIComponent(window.payloadData.ic_home);
+            const waypoints = stops.slice(0, limit).map(s => encodeURIComponent(s.trim())).join('|');
             return `https://www.google.com/maps/dir/?api=1&origin=${home}&destination=${home}&waypoints=${waypoints}&travelmode=driving`;
         }
 
-        function launchMaps(limit) {
-            const url = buildMapsUrl(limit);
-            if (url) window.open(url, '_blank');
-        }
-
-        function copyFullLink() {
-            const url = buildMapsUrl(25);
-            if (url) {
-                navigator.clipboard.writeText(url);
-                alert("Full Route Link Copied!");
-            }
-        }
-
+        function viewRoute(l) { window.open(getMapsUrl(l), '_blank'); }
+        function copyMapUrl() { navigator.clipboard.writeText(getMapsUrl(25)); alert("Route Copied"); }
+        
         async function submitFinal() {
-            const decision = document.querySelector('input[name="ic_decision"]:checked').value;
-            const sig = document.getElementById('typed_sig').value;
-            const consent = document.getElementById('consent').checked;
-            const btn = document.getElementById('submitBtn');
-
-            if (decision === 'Accepted' && (!sig || !consent)) return alert("Signature and Consent required.");
-
-            btn.disabled = true;
-            btn.innerHTML = `<div class="flex items-center justify-center gap-2"><div class="spinner"></div><span>SUBMITTING...</span></div>`;
-
-            try {
-                // 1. Google Sheet Log
-                await fetch(GAS_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: "authorizeRoute", routeId: routeId, decision: decision, signature: sig, notes: document.getElementById('notes').value })
-                });
-
-                // 2. Formspree Email
-                await fetch(FORMSPREE, {
-                    method: 'POST',
-                    headers: { 'Accept': 'application/json' },
-                    body: JSON.stringify({ Subject: `${decision}: WO ${window.routeData.wo}`, Contractor: window.routeData.icn, Comp: `$${window.routeData.comp}`, Sig: sig })
-                });
-
-                document.getElementById('icMode').classList.add('hidden');
-                document.getElementById('successView').classList.remove('hidden');
-            } catch (e) {
-                alert("Failed. Please try again.");
-                btn.disabled = false; btn.innerText = "Submit Final Response";
-            }
+            const dec = document.querySelector('input[name="ic_decision"]:checked').value;
+            await fetch(webAppUrl, { method: 'POST', body: JSON.stringify({ action: "authorizeRoute", routeId: routeId, decision: dec, signature: document.getElementById('typed_sig').value })});
+            alert("Response Recorded.");
         }
-
-        function toggleForm() {
-            const val = document.querySelector('input[name="ic_decision"]:checked').value;
-            document.getElementById('acceptBlock').classList.toggle('hidden', val === 'Declined');
-            document.getElementById('declineBlock').classList.toggle('hidden', val === 'Accepted');
-        }
-
-        function updateSig(val) { document.getElementById('live_sig').innerText = val || "________________"; }
     </script>
 </body>
 </html>
