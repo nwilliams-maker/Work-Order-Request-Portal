@@ -221,11 +221,11 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
             "time": t_str,
             "locs": " | ".join(list(loc_sum.keys())),
             "taskIds": ",".join([t['id'] for t in cluster['data']])
-                }
-                res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
-                if res.get("success"):
-                    st.session_state[sync_key] = res.get("routeId")
-                    st.rerun()
+        }
+        res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
+        if res.get("success"):
+            st.session_state[sync_key] = res.get("routeId")
+            st.rerun()
         else:
             st.button("✅ Data Synced", disabled=True, key=f"synced_{i}_{pod_name}")
 
