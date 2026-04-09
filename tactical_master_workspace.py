@@ -9,17 +9,19 @@ from datetime import datetime, timedelta
 from streamlit_folium import st_folium
 import folium
 
-# --- CONFIG & CREDENTIALS ---
+# --- 1. CONFIG & CREDENTIALS ---
 ONFLEET_KEY = st.secrets["ONFLEET_KEY"]
 GOOGLE_MAPS_KEY = st.secrets["GOOGLE_MAPS_KEY"]
-PORTAL_BASE_URL = "https://nwilliams-maker.github.io/Route-Authorization-Portal/portal-v2.html"
 GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbynAIziubArSQ0hVGTvJMpk11a9yLP0kNcSmGpcY7GDNRT25Po5p92K3EDslx9VycKC/exec"
+PORTAL_BASE_URL = "https://nwilliams-maker.github.io/Route-Authorization-Portal/portal-v2.html"
 IC_SHEET_URL = "https://docs.google.com/spreadsheets/d/1y6wX0x93iDc3gdK_nZKLD-2QcGkUHkcM75u90ffRO6k/edit#gid=0"
 
+# Constants
 MAX_DEADHEAD_MILES = 60
 HOURLY_FLOOR_RATE = 25.00
 REVIEW_PER_STOP_LIMIT = 23.00 
 
+# Colors
 TB_PURPLE = "#633094"
 TB_GREEN = "#76bc21"
 TB_RED = "#ef4444"
@@ -52,22 +54,29 @@ headers = {"Authorization": f"Basic {base64.b64encode(f'{ONFLEET_KEY}:'.encode()
 
 st.set_page_config(page_title="Terraboost Tactical Workspace", layout="wide")
 
-# --- UI STYLING (FULL PRESERVATION) ---
+# --- 2. UI STYLING (FULL PRESERVATION) ---
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
     .stApp {{ background-color: #f4f5f7 !important; color: #000000 !important; font-family: 'Roboto', sans-serif !important; }}
     h1, h2, h3 {{ color: {TB_PURPLE} !important; font-weight: 800 !important; }}
+    
+    /* Expander Header: Light Blue Background, Dark Text */
     div[data-testid="stExpander"] {{ border: 1px solid #d0d4e4 !important; border-radius: 8px !important; margin-bottom: 12px; }}
     div[data-testid="stExpander"] details summary {{ background-color: {TB_LIGHT_BLUE} !important; padding: 12px !important; border-radius: 8px 8px 0 0 !important; }}
     div[data-testid="stExpander"] details summary p {{ color: #1e293b !important; font-weight: 700 !important; font-size: 16px !important; }}
+
     div[data-testid="stWidgetLabel"] p {{ color: #000000 !important; font-weight: 700 !important; font-size: 14px !important; opacity: 1 !important; }}
-    .stTextInput input, .stNumberInput input, .stDateInput input, div[data-baseweb="select"] > div {{ background-color: #FFFFFF !important; color: #000000 !important; border: 1px solid #323338 !important; opacity: 1 !important; }}
+    .stTextInput input, .stNumberInput input, .stDateInput input, div[data-baseweb="select"] > div {{ background-color: #FFFFFF !important; color: #000000 !important; border: 1px solid #323338 !important; }}
+    
+    /* High Contrast Email Box */
     div[data-testid="stTextArea"] textarea {{ color: #000000 !important; background-color: #FFFFFF !important; border: 1px solid #323338 !important; font-weight: 600 !important; opacity: 1 !important; }}
     div[data-testid="stTextArea"] label p {{ color: #000000 !important; font-weight: 800 !important; }}
+
     .metric-box {{ border-left: 5px solid {TB_PURPLE}; padding: 12px 15px; margin-bottom: 15px; background: white; border-radius: 0 4px 4px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
     .metric-title {{ font-size: 11px; text-transform: uppercase; color: #444444 !important; font-weight: 800; }}
     .metric-value {{ font-size: 20px; color: {TB_PURPLE} !important; font-weight: 800; }}
+    
     .stTabs [data-baseweb="tab"] {{ color: #444444 !important; font-weight: 600 !important; }}
     .stTabs [aria-selected="true"] {{ color: {TB_PURPLE} !important; border-bottom: 3px solid {TB_GREEN} !important; }}
     .stButton>button {{ background-color: {TB_PURPLE} !important; color: #FFFFFF !important; font-weight: 700 !important; border-radius: 6px !important; width: 100%; }}
@@ -75,7 +84,7 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- UTILITIES ---
+# --- 3. UTILITIES ---
 def normalize_state(st_str):
     if not st_str: return "UNKNOWN"
     clean = str(st_str).strip().upper()
@@ -103,12 +112,11 @@ def fetch_gmaps_directions(home, waypoints_tuple):
 @st.cache_data(ttl=600)
 def load_ic_database(url):
     try: 
-        # Forces a CSV export from the provided Google Sheet URL
         export_url = f"{url.split('/edit')[0]}/export?format=csv&gid=0"
         return pd.read_csv(export_url)
     except: return None
 
-# --- PROCESSING ---
+# --- 4. DATA PROCESSING ---
 def process_pod_data(pod_name, p_bar=None, progress_step=0.0):
     config = POD_CONFIGS[pod_name]
     if p_bar: p_bar.progress(progress_step, text=f"📡 Syncing {pod_name}...")
@@ -147,9 +155,10 @@ def process_pod_data(pod_name, p_bar=None, progress_step=0.0):
     
     st.session_state[f"clusters_{pod_name}"] = clusters
 
+# --- 5. UI RENDERER ---
 def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     cluster_hash = hashlib.md5("".join(sorted([t['id'] for t in cluster['data']])).encode()).hexdigest()
-    sync_key, sent_key = f"sync_{cluster_hash}", f"sent_log_{cluster_hash}"
+    sync_key = f"sync_{cluster_hash}"
     real_gas_id = st.session_state.get(sync_key, None)
     link_id = real_gas_id if real_gas_id else "LINK_PENDING"
 
@@ -160,7 +169,9 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     st.divider()
 
     ic_df = st.session_state.ic_df
-    # Filtering: Exclude Field Agents
+    if ic_df is None:
+        st.error("IC Database not loaded."); return
+
     v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy()
     c_lat, c_lon = cluster['center']
     v_ics['d'] = v_ics.apply(lambda x: haversine(c_lat, c_lon, x['Lat'], x['Lng']), axis=1)
@@ -195,65 +206,57 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     sig = f"Work Order: {sel_ic['Name']} - {datetime.now().strftime('%m%d%Y')}-{i}\nDue: {due}\nMetrics: {mi}mi, {t_str}\nPay: ${pay:.2f}\nAuthorize: {PORTAL_BASE_URL}?route={link_id}"
     st.text_area("Email Preview", sig, height=150, key=f"area_{i}_{pod_name}")
 
-# --- GLOBAL TAB ---
-def run_global_tab():
-    st.markdown("## 🌎 Global Network Overview")
-    if st.button("🚀 Sync Global Network"):
-        p_bar = st.progress(0, text="Initializing Network Sweep...")
-        pods = list(POD_CONFIGS.keys())
-        for idx, pod in enumerate(pods):
-            process_pod_data(pod, p_bar, (idx + 1) / len(pods))
-        st.success("Global Sync Complete!")
-        st.rerun()
-
-# --- POD TAB ---
 def run_pod_tab(pod_name):
     if f"clusters_{pod_name}" not in st.session_state:
-        st.info(f"Data for {pod_name} not loaded.")
+        st.info(f"Please Sync Global Network first.")
         return
 
     clusters = st.session_state[f"clusters_{pod_name}"]
     ic_df = st.session_state.ic_df
     v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng'])
     
-    ready, review, sent = [], [], []
+    ready, review = [], []
     for c in clusters:
-        c_h = hashlib.md5("".join(sorted([t['id'] for t in c['data']])).encode()).hexdigest()
-        if f"sent_log_{c_h}" in st.session_state: 
-            sent.append(c); continue
-        
         has_ic = v_ics.apply(lambda x: haversine(c['center'][0], c['center'][1], x['Lat'], x['Lng']), axis=1).le(MAX_DEADHEAD_MILES).any() if not v_ics.empty else False
         
-        # GATEKEEPER LOGIC: check if ($25 * hrs) / stops > $23
+        # 🎯 GATEKEEPER LOGIC: (Hours * $25) / stops > $23
         _, hrs, _ = fetch_gmaps_directions(f"{c['center'][0]},{c['center'][1]}", tuple([d['full_addr'] for d in c['data'][:10]]))
         gate_avg = (hrs * HOURLY_FLOOR_RATE) / c['unique_count'] if c['unique_count'] > 0 else 0
         
         if has_ic and gate_avg <= REVIEW_PER_STOP_LIMIT: ready.append(c)
         else: review.append(c)
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3 = st.columns(3)
     c1.markdown(f"<div class='metric-box'><div class='metric-title'>Total</div><div class='metric-value'>{len(clusters)}</div></div>", unsafe_allow_html=True)
     c2.markdown(f"<div class='metric-box'><div class='metric-title' style='color:{TB_GREEN}'>Ready</div><div class='metric-value'>{len(ready)}</div></div>", unsafe_allow_html=True)
-    c3.markdown(f"<div class='metric-box'><div class='metric-title' style='color:{TB_BLUE}'>Sent</div><div class='metric-value'>{len(sent)}</div></div>", unsafe_allow_html=True)
-    c4.markdown(f"<div class='metric-box'><div class='metric-title' style='color:{TB_RED}'>Review</div><div class='metric-value'>{len(review)}</div></div>", unsafe_allow_html=True)
+    c3.markdown(f"<div class='metric-box'><div class='metric-title' style='color:{TB_RED}'>Review</div><div class='metric-value'>{len(review)}</div></div>", unsafe_allow_html=True)
 
-    t1, t2, t3 = st.tabs(["🟢 Ready", "📧 Sent", "🔴 Review"])
+    t1, t2 = st.tabs(["🟢 Ready", "🔴 Review"])
     with t1:
         for i, c in enumerate(ready):
             with st.expander(f"📍 {c['city']}, {c['state']} | {c['unique_count']} Stops"): render_dispatch_logic(i, c, pod_name)
     with t2:
-        for i, c in enumerate(sent):
-            with st.expander(f"✅ Sent | {c['city']}, {c['state']}"): render_dispatch_logic(i+500, c, pod_name, True)
-    with t3:
         for i, c in enumerate(review):
             with st.expander(f"🔴 Review Required | {c['city']}, {c['state']}"): render_dispatch_logic(i+1000, c, pod_name)
 
-# --- MAIN RUNNER ---
+# --- 6. GLOBAL TAB ---
+def run_global_tab():
+    st.markdown("## 🌎 Global Network Overview")
+    if st.button("🚀 Sync Global Network"):
+        p_bar = st.progress(0, text="Initializing Global Sweep...")
+        pods = list(POD_CONFIGS.keys())
+        for idx, pod in enumerate(pods):
+            process_pod_data(pod, p_bar, (idx + 1) / len(pods))
+        st.success("Global Sync Complete!")
+        st.rerun()
+
+# --- 7. MAIN RUNNER ---
 if "ic_df" not in st.session_state:
     st.session_state.ic_df = load_ic_database(IC_SHEET_URL)
 
 st.markdown("<h1>Network Command Center</h1>", unsafe_allow_html=True)
 tabs = st.tabs(["🌎 Global", "🔵 Blue Pod", "🟢 Green Pod", "🟠 Orange Pod", "🟣 Purple Pod", "🔴 Red Pod"])
+
 with tabs[0]: run_global_tab()
 with tabs[1]: run_pod_tab("Blue Pod")
 with tabs[2]: run_pod_tab("Green Pod")
