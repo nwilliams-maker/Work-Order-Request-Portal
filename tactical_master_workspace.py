@@ -23,6 +23,7 @@ TB_PURPLE = "#633094"
 TB_GREEN = "#76bc21"
 TB_APP_BG = "#f1f5f9"    
 TB_HOVER_GRAY = "#e2e8f0" 
+TB_RED_FILL = "#ffcccc" # Red fill for the Flagged box
 
 POD_CONFIGS = {
     "Blue": {"states": {"AL", "AR", "FL", "IL", "IA", "LA", "MI", "MN", "MS", "MO", "NC", "SC", "WI"}},
@@ -70,16 +71,25 @@ st.markdown(f"""
     .stTabs [data-baseweb="tab"]:nth-of-type(6) {{ background-color: #fee2e2 !important; color: #000000 !important; }}
     .stTabs [aria-selected="true"] {{ transform: scale(1.05); border: 2px solid {TB_PURPLE} !important; }}
 
-    /* Expander Cards - Pure White Base */
-    div[data-testid="stExpander"] {{ border: 1px solid #cbd5e1 !important; border-radius: 15px !important; background: #ffffff !important; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); margin-bottom: 20px; overflow: hidden; }}
-    div[data-testid="stExpander"] details summary p {{ color: #000000 !important; font-weight: 800 !important; }}
-    
-    /* OVERRIDE CARD HEADER HOVER */
-    div[data-testid="stExpander"] details summary:hover,
-    div[data-testid="stExpander"] details summary:focus,
-    div[data-testid="stExpander"] details summary:active {{
-        background-color: #ffffff !important;
+    /* CRITICAL: Overriding dark theme bleed on Expander Cards */
+    div[data-testid="stExpander"] {{ 
+        border: 1px solid #cbd5e1 !important; 
+        border-radius: 15px !important; 
+        background-color: #ffffff !important; 
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); 
+        margin-bottom: 20px; 
+        overflow: hidden; 
     }}
+    div[data-testid="stExpander"] > details,
+    div[data-testid="stExpander"] > details > summary,
+    div[data-testid="stExpander"] > details > summary:hover,
+    div[data-testid="stExpander"] > details > summary:focus,
+    div[data-testid="stExpander"] > details > summary:active {{
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }}
+    div[data-testid="stExpander"] details summary p {{ color: #000000 !important; font-weight: 800 !important; }}
+    div[data-testid="stExpander"] svg {{ fill: #000000 !important; color: #000000 !important; }}
     
     /* Input Fields Base */
     div[data-baseweb="select"] > div, div[data-testid="stNumberInput"] input, div[data-testid="stDateInput"] input {{ 
@@ -96,10 +106,11 @@ st.markdown(f"""
         color: #000000 !important;
     }}
     
-    /* Terraboost Action Buttons */
+    /* Terraboost Action Buttons (Purple) */
     .stButton>button {{ background-color: {TB_PURPLE} !important; color: #ffffff !important; font-weight: 800 !important; border-radius: 12px !important; width: 100%; border: none !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s ease; }}
     .stButton>button:hover {{ filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 6px 10px rgba(0,0,0,0.15); color: #ffffff !important; }}
     
+    /* Gmail Green Buttons */
     .gmail-btn {{ text-align: center; background-color: {TB_GREEN} !important; color: #ffffff !important; padding: 12px; border-radius: 12px; font-weight: 800; display: block; text-decoration: none; border: none !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s ease; }}
     .gmail-btn:hover {{ filter: brightness(1.05); transform: translateY(-2px); box-shadow: 0 6px 10px rgba(0,0,0,0.15); color: #ffffff !important; }}
     
@@ -382,8 +393,12 @@ def run_pod_tab(pod_name):
     
     c1, c2, c3, c4 = st.columns([1,1,1, 1.2])
     for col, title, val in zip([c1, c2, c3], ["Ready", "Sent", "Flagged"], [len(ready), len(sent), len(review)]):
+        
+        # Apply the red fill specifically for Flagged
+        bg_color = TB_RED_FILL if title == "Flagged" else "#f8fafc"
+        
         col.markdown(f"""
-            <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:15px; text-align:center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);'>
+            <div style='background:{bg_color}; border:1px solid #cbd5e1; border-radius:12px; padding:15px; text-align:center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);'>
                 <p style='margin:0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>{title}</p>
                 <p style='margin:0; font-size:26px; font-weight:800; color:#000000;'>{val}</p>
             </div>
