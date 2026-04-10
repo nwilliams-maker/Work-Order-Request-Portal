@@ -68,13 +68,10 @@ st.markdown(f"""
     .stTabs [data-baseweb="tab-list"] {{ justify-content: center; gap: 8px; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 15px; }}
     .stTabs [data-baseweb="tab"] {{ border-radius: 10px !important; padding: 10px 20px !important; font-weight: 700 !important; }}
     
-    /* TOP LEVEL TABS (Pod Colors) */
-    .stTabs [data-baseweb="tab"]:nth-of-type(1) {{ background-color: #ffffff !important; color: #000000 !important; }}
-    .stTabs [data-baseweb="tab"]:nth-of-type(2) {{ background-color: #dbeafe !important; color: #000000 !important; }}
-    .stTabs [data-baseweb="tab"]:nth-of-type(3) {{ background-color: #dcfce7 !important; color: #000000 !important; }}
-    .stTabs [data-baseweb="tab"]:nth-of-type(4) {{ background-color: #ffedd5 !important; color: #000000 !important; }}
-    .stTabs [data-baseweb="tab"]:nth-of-type(5) {{ background-color: #f3e8ff !important; color: #000000 !important; }}
-    .stTabs [data-baseweb="tab"]:nth-of-type(6) {{ background-color: #fee2e2 !important; color: #000000 !important; }}
+    /* TOP LEVEL TABS */
+    .stTabs [data-baseweb="tab"]:nth-of-type(1), .stTabs [data-baseweb="tab"]:nth-of-type(2), 
+    .stTabs [data-baseweb="tab"]:nth-of-type(3), .stTabs [data-baseweb="tab"]:nth-of-type(4), 
+    .stTabs [data-baseweb="tab"]:nth-of-type(5), .stTabs [data-baseweb="tab"]:nth-of-type(6) {{ background-color: #ffffff !important; color: #000000 !important; }}
     .stTabs [aria-selected="true"] {{ transform: scale(1.05); border: 2px solid {TB_PURPLE} !important; }}
 
     /* NESTED SUB-TABS OVERRIDE (Ready = Green, Sent = Blue, Flagged = Red) */
@@ -82,28 +79,40 @@ st.markdown(f"""
     div[data-testid="stTabs"] div[data-testid="stTabs"] [data-baseweb="tab"]:nth-of-type(2) {{ background-color: {TB_BLUE_FILL} !important; color: #000000 !important; }}
     div[data-testid="stTabs"] div[data-testid="stTabs"] [data-baseweb="tab"]:nth-of-type(3) {{ background-color: {TB_RED_FILL} !important; color: #000000 !important; }}
 
-    /* Expander Cards - Pure White Base */
-    div[data-testid="stExpander"] {{ border: 1px solid #cbd5e1 !important; border-radius: 15px !important; background: #ffffff !important; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); margin-bottom: 20px; overflow: hidden; }}
+    /* FORCE EXPANDER CARDS PURE WHITE */
+    div[data-testid="stExpander"],
     div[data-testid="stExpander"] > details,
     div[data-testid="stExpander"] > details > summary,
-    div[data-testid="stExpander"] > details > summary:hover,
-    div[data-testid="stExpander"] > details > summary:focus,
-    div[data-testid="stExpander"] > details > summary:active {{
-        background-color: #ffffff !important;
+    div[data-testid="stExpander"] [data-testid="stExpanderDetails"] {{
+        background-color: #ffffff !important; 
         color: #000000 !important;
     }}
+    div[data-testid="stExpander"] {{ border: 1px solid #cbd5e1 !important; border-radius: 15px !important; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); margin-bottom: 20px; overflow: hidden; }}
     div[data-testid="stExpander"] details summary p {{ color: #000000 !important; font-weight: 800 !important; }}
     div[data-testid="stExpander"] svg {{ fill: #000000 !important; color: #000000 !important; }}
     
-    /* Input Fields Base */
-    div[data-baseweb="select"] > div, div[data-testid="stNumberInput"] input, div[data-testid="stDateInput"] input {{ 
-        background-color: #ffffff !important; color: #000000 !important; border: 1.5px solid #cbd5e1 !important; 
+    /* FORCE TEXT AREA AND INPUTS PURE WHITE WITH BLACK TEXT */
+    div[data-baseweb="select"] > div, 
+    div[data-testid="stNumberInput"] input, 
+    div[data-testid="stDateInput"] input,
+    div[data-testid="stTextArea"] textarea {{ 
+        background-color: #ffffff !important; 
+        color: #000000 !important; 
+        border: 1.5px solid #cbd5e1 !important; 
+        border-radius: 8px !important;
+    }}
+
+    /* FORCE LABELS TO BLACK */
+    label, div[data-testid="stWidgetLabel"] p {{
+        color: #000000 !important;
+        font-weight: 600 !important;
     }}
     
     /* Hover Fix for Inputs and Dropdowns */
     div[data-baseweb="select"] > div:hover, 
     div[data-testid="stNumberInput"] input:hover, 
     div[data-testid="stDateInput"] input:hover,
+    div[data-testid="stTextArea"] textarea:hover,
     li[role="option"]:hover,
     ul[role="listbox"] li:hover {{
         background-color: {TB_HOVER_GRAY} !important;
@@ -185,7 +194,7 @@ def load_ic_database(sheet_url):
         return pd.read_csv(export_url)
     except: return None
 
-# --- CORE LOGIC (With Pruning & 60-Mile IC Gate) ---
+# --- CORE LOGIC (With Dynamic Pruning & Real IC Routing) ---
 def process_pod(pod_name):
     config = POD_CONFIGS[pod_name]
     progress_bar = st.progress(0, text=f"📥 Extracting {pod_name} tasks & evaluating dense routes...")
@@ -233,6 +242,19 @@ def process_pod(pod_name):
             candidates.sort(key=lambda x: x[0])
             group = [anc] + [c[1] for c in candidates]
             
+            # Find the actual closest contractor to act as the driving start point
+            has_ic = False
+            closest_ic_loc = f"{anc['lat']},{anc['lon']}" # Default to center if no IC exists
+            
+            if not v_ics_base.empty:
+                dists = v_ics_base.apply(lambda x: haversine(anc['lat'], anc['lon'], x['Lat'], x['Lng']), axis=1)
+                valid_ics = v_ics_base[dists <= 60].copy()
+                if not valid_ics.empty:
+                    has_ic = True
+                    valid_ics['d'] = dists[dists <= 60]
+                    best_ic = valid_ics.sort_values('d').iloc[0]
+                    closest_ic_loc = best_ic['Location']
+
             def check_viability(grp):
                 seen = set(); unique_locs = []
                 for x in grp:
@@ -240,20 +262,26 @@ def process_pod(pod_name):
                         seen.add(x['full']); unique_locs.append(x['full'])
                 if not unique_locs: return 0, 0
                 waypts = unique_locs[:25] 
-                _, hrs, _ = get_gmaps(f"{anc['lat']},{anc['lon']}", waypts)
-                avg = (hrs * 25.0) / len(unique_locs) if len(unique_locs) > 0 else 0
+                
+                # CRITICAL: Calculates Google Maps time using Contractor's real house
+                _, hrs, _ = get_gmaps(closest_ic_loc, waypts)
+                
+                # Matches exact UI financial logic
+                pay = round(max(len(unique_locs) * 18.0, hrs * 25.0), 2)
+                avg = round(pay / len(unique_locs), 2) if len(unique_locs) > 0 else 0
                 return avg, len(unique_locs)
             
             gate_avg, u_count = check_viability(group)
             status = "Ready"
             
-            if gate_avg > 23.0 and len(group) > 1:
+            # If standard rate turns red (>23.00), attempt to save it by pruning
+            if gate_avg > 23.00 and len(group) > 1:
                 removed_stops = []
                 passed = False
                 for _ in range(min(3, len(group) - 1)):
                     removed_stops.append(group.pop()) 
                     new_avg, _ = check_viability(group)
-                    if new_avg <= 23.0:
+                    if new_avg <= 23.00:
                         passed = True
                         break
                 
@@ -263,14 +291,8 @@ def process_pod(pod_name):
                 else:
                     group.extend(removed_stops[::-1])
                     status = "Flagged"
-            elif gate_avg > 23.0:
+            elif gate_avg > 23.00:
                 status = "Flagged"
-            
-            has_ic = False
-            if not v_ics_base.empty:
-                dists = v_ics_base.apply(lambda x: haversine(anc['lat'], anc['lon'], x['Lat'], x['Lng']), axis=1)
-                if (dists <= 60).any():
-                    has_ic = True
             
             if not has_ic:
                 status = "Flagged"
@@ -291,7 +313,7 @@ def process_pod(pod_name):
         progress_bar.empty()
         st.error(f"Error initializing {pod_name}: {str(e)}")
 
-def render_dispatch(i, cluster, pod_name, is_sent=False):
+def render_dispatch(cluster, pod_name, is_sent=False):
     task_ids = [str(t['id']).strip() for t in cluster['data']]
     cluster_hash = hashlib.md5("".join(sorted(task_ids)).encode()).hexdigest()
     sync_key = f"sync_{cluster_hash}"
@@ -325,9 +347,9 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
                 default_idx = idx
                 break
 
-    sel_label = col_a.selectbox("Contractor", list(ic_opts.keys()), index=default_idx, key=f"sel_{i}_{pod_name}")
-    rate = col_b.number_input("Rate/Stop", 16.0, 150.0, 18.0, key=f"rt_{i}_{pod_name}")
-    due = col_c.date_input("Deadline", datetime.now().date()+timedelta(14), key=f"dd_{i}_{pod_name}")
+    sel_label = col_a.selectbox("Contractor", list(ic_opts.keys()), index=default_idx, key=f"sel_{cluster_hash}")
+    rate = col_b.number_input("Rate/Stop", 16.0, 150.0, 18.0, key=f"rt_{cluster_hash}")
+    due = col_c.date_input("Deadline", datetime.now().date()+timedelta(14), key=f"dd_{cluster_hash}")
 
     ic = ic_opts[sel_label]
     mi, hrs, t_str = get_gmaps(ic['Location'], list(loc_sum.keys())[:25])
@@ -341,15 +363,15 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
     sig = (f"Work Order: {ic['Name']} - {datetime.now().strftime('%m%d%Y')}\nContractor: {ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
            f"Metrics:\n- Stops: {cluster['stops']}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
            f"Authorize here:\n{PORTAL_BASE_URL}?route={link_id}&v2=true")
-    st.text_area("Email Content Preview", sig, height=180, key=f"tx_{i}_{pod_name}")
+    st.text_area("Email Content Preview", sig, height=180, key=f"tx_{cluster_hash}")
 
     col1, col2 = st.columns(2)
     with col1:
         if not real_id:
-            if st.button("☁️ Push & Generate Link", key=f"btn_s_{i}_{pod_name}"):
+            if st.button("☁️ Push & Generate Link", key=f"btn_s_{cluster_hash}"):
                 home = ic['Location']
                 payload = {
-                    "icn": ic['Name'], "ice": ic['Email'], "wo": f"{ic['Name']}-{i}", 
+                    "icn": ic['Name'], "ice": ic['Email'], "wo": f"{ic['Name']}-{cluster_hash[:5]}", 
                     "due": str(due), "comp": pay, "lCnt": cluster['stops'], "mi": mi, "time": t_str, "phone": str(ic['Phone']),
                     "locs": " | ".join([home] + list(loc_sum.keys()) + [home]),
                     "taskIds": ",".join(task_ids),
@@ -359,7 +381,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
                 if res.get("success"):
                     st.session_state[sync_key] = res.get("routeId")
                     st.rerun()
-        else: st.button("✅ Link Generated", disabled=True, key=f"dis_{i}_{pod_name}")
+        else: st.button("✅ Link Generated", disabled=True, key=f"dis_{cluster_hash}")
     
     with col2:
         if real_id:
@@ -427,16 +449,16 @@ def run_pod_tab(pod_name):
     
     t_ready, t_out, t_rev = st.tabs(["Dispatch Ready", "Sent", "Flagged"])
     with t_ready:
-        for i, c in enumerate(ready):
-            with st.expander(f"📍 {c['city']}, {c['state']} | {c['stops']} Stops"): render_dispatch(i, c, pod_name)
+        for c in ready:
+            with st.expander(f"📍 {c['city']}, {c['state']} | {c['stops']} Stops"): render_dispatch(c, pod_name)
     with t_out:
-        for i, c in enumerate(sent):
+        for c in sent:
             ic_name = c.get('contractor_name', 'Unknown')
-            with st.expander(f"✓ {ic_name} | {c['city']}, {c['state']} | {c['stops']} Stops"): render_dispatch(i+500, c, pod_name, is_sent=True)
+            with st.expander(f"✓ {ic_name} | {c['city']}, {c['state']} | {c['stops']} Stops"): render_dispatch(c, pod_name, is_sent=True)
     with t_rev:
-        for i, c in enumerate(review):
+        for c in review:
             status_emoji = "🔴" if c.get('has_ic') else "⚠" 
-            with st.expander(f"{status_emoji} {c['city']}, {c['state']} | {c['stops']} Stops"): render_dispatch(i+1000, c, pod_name)
+            with st.expander(f"{status_emoji} {c['city']}, {c['state']} | {c['stops']} Stops"): render_dispatch(c, pod_name)
 
 # --- START ---
 if "ic_df" not in st.session_state:
