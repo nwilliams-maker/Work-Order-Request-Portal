@@ -347,7 +347,7 @@ def render_dispatch(cluster, pod_name, is_sent=False):
                 break
 
     sel_label = col_a.selectbox("Contractor", list(ic_opts.keys()), index=default_idx, key=f"sel_{cluster_hash}")
-    rate = col_b.number_input("Rate/Stop", 16.0, 150.0, 18.0, key=f"rt_{cluster_hash}")
+    rate = col_b.number_input("Rate/Stop", 16.0, 150.0, 18.0, step=1.0, key=f"rt_{cluster_hash}")
     due = col_c.date_input("Deadline", datetime.now().date()+timedelta(14), key=f"dd_{cluster_hash}")
 
     ic = ic_opts[sel_label]
