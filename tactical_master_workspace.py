@@ -19,15 +19,16 @@ IC_SHEET_URL = "https://docs.google.com/spreadsheets/d/1y6wX0x93iDc3gdK_nZKLD-2Q
 
 SAVED_ROUTES_GID = "1477617688" 
 
+# Terraboost Brand Colors
+TB_PURPLE = "#633094"
+TB_GREEN = "#76bc21"
+TB_GRAY_BG = "#cbd5e1"
+TB_OFF_WHITE = "#f8fafc"
+TB_LIGHT_BLUE = "#f0f7ff"
+
 MAX_DEADHEAD_MILES = 60
 HOURLY_FLOOR_RATE = 25.00
 REVIEW_PER_STOP_LIMIT = 23.00 
-
-TB_PURPLE = "#633094"
-TB_GREEN = "#76bc21"
-TB_RED = "#ef4444"
-TB_BLUE = "#3b82f6"
-TB_LIGHT_BLUE = "#e6f0fa"
 
 POD_CONFIGS = {
     "Blue Pod": {"states": {"AL", "AR", "FL", "IL", "IA", "LA", "MI", "MN", "MS", "MO", "NC", "SC", "WI"}, "color": "blue"},
@@ -53,48 +54,38 @@ STATE_MAP = {
 
 headers = {"Authorization": f"Basic {base64.b64encode(f'{ONFLEET_KEY}:'.encode()).decode()}"}
 
-st.set_page_config(page_title="Network Command Center", layout="wide")
+st.set_page_config(page_title="Terraboost Tactical Workspace", layout="wide")
 
-# --- UI STYLING (Removed Dark Hover + Input Stability) ---
+# --- UI STYLING (Terraboost Branding) ---
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
     
     .stApp {{ 
-        background-color: #cbd5e1 !important; 
-        color: #0f172a !important; 
+        background-color: {TB_GRAY_BG} !important; 
+        color: #000000 !important; 
         font-family: 'Inter', sans-serif !important; 
     }}
     
-    /* Modern Nav Pills */
-    .stTabs [data-baseweb="tab-list"] {{
-        gap: 8px;
-        background-color: rgba(15, 23, 42, 0.08);
-        padding: 10px;
-        border-radius: 16px;
-    }}
+    h1, h2, h3 {{ color: {TB_PURPLE} !important; font-weight: 800 !important; }}
 
+    /* Standard Navigation */
     .stTabs [data-baseweb="tab"] {{
-        background-color: transparent;
-        border-radius: 10px;
         color: #475569 !important;
-        font-weight: 700;
-        border: none !important;
-        padding: 10px 20px;
+        font-weight: 700 !important;
     }}
-
     .stTabs [aria-selected="true"] {{
-        background-color: white !important;
         color: {TB_PURPLE} !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        border-bottom-color: {TB_PURPLE} !important;
     }}
 
-    /* Card Styling */
+    /* Expander styling */
     div[data-testid="stExpander"] {{ 
         border: 1.5px solid #94a3b8 !important; 
-        border-radius: 20px !important; 
+        border-radius: 12px !important; 
         background-color: #FFFFFF !important;
-        margin-bottom: 16px; 
+        margin-bottom: 12px; 
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }}
     
     div[data-testid="stExpander"] details summary p {{ 
@@ -103,41 +94,49 @@ st.markdown(f"""
         font-size: 18px !important;
     }}
 
-    /* FIXED INPUT FIELDS: No Dark Hover Fill */
+    /* Overhead Metric Boxes */
+    .overview-metric {{ 
+        border-radius: 12px; 
+        padding: 15px; 
+        background-color: #ffffff; 
+        border-left: 5px solid {TB_PURPLE};
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        margin-bottom: 15px;
+    }}
+
+    /* INPUT FIELDS: No Dark Hover Fill */
     div[data-baseweb="select"] > div, 
     div[data-testid="stNumberInput"] input, 
     div[data-testid="stDateInput"] input {{
-        background-color: #f8fafc !important;
-        color: #0f172a !important;
-        border: 1.5px solid #e2e8f0 !important;
-        border-radius: 10px !important;
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1.5px solid #cbd5e1 !important;
+        border-radius: 8px !important;
         font-weight: 600 !important;
     }}
     
-    /* Force visibility for Selectbox labels and items */
-    div[data-baseweb="select"] span {{ color: #0f172a !important; }}
+    div[data-baseweb="select"] span {{ color: #000000 !important; }}
     
-    /* REMOVE DARK HOVER OVERRIDES */
     div[data-baseweb="select"] > div:hover,
     div[data-testid="stNumberInput"] input:hover,
     div[data-testid="stDateInput"] input:hover {{
-        background-color: #ffffff !important; /* Keep it light */
-        border-color: {TB_BLUE} !important;
+        background-color: #ffffff !important;
+        border-color: {TB_PURPLE} !important;
     }}
 
+    /* Payload Box */
     div[data-testid="stTextArea"] textarea {{
-        background-color: #f0f7ff !important;
-        color: #1e3a8a !important;
-        border: 1.5px solid #bfdbfe !important;
-        border-radius: 14px !important;
-        font-size: 14px !important;
-        font-weight: 500 !important;
+        background-color: {TB_LIGHT_BLUE} !important;
+        color: #000000 !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 12px !important;
+        font-family: 'Inter', sans-serif !important;
     }}
 
     .summary-card {{
-        background: #f8fafc;
+        background: {TB_OFF_WHITE};
         border: 1px solid #e2e8f0;
-        border-radius: 14px;
+        border-radius: 12px;
         padding: 15px;
         margin-bottom: 10px;
     }}
@@ -146,11 +145,23 @@ st.markdown(f"""
         background-color: {TB_PURPLE} !important; 
         color: #FFFFFF !important; 
         font-weight: 700 !important; 
-        border-radius: 12px !important; 
-        height: 3.5em !important;
+        border-radius: 10px !important; 
+    }}
+
+    /* Gmail Button Override */
+    .gmail-btn {{
+        text-align: center; 
+        background-color: {TB_GREEN} !important; 
+        color: white !important; 
+        padding: 12px; 
+        border-radius: 12px; 
+        font-weight: 800;
+        text-decoration: none;
+        display: block;
+        border: 1px solid #5d911a;
     }}
     
-    div[data-testid="stWidgetLabel"] p {{ color: #64748b !important; font-weight: 800 !important; font-size: 11px !important; text-transform: uppercase; }}
+    div[data-testid="stWidgetLabel"] p {{ color: #000000 !important; font-weight: 700 !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -177,11 +188,6 @@ def load_sent_records_from_sheet(sheet_url):
                 sent_tasks.update([tid.strip() for tid in split_ids])
         return sent_tasks
     except: return set()
-
-def normalize_state(st_str):
-    if not st_str: return "UNKNOWN"
-    clean = str(st_str).strip().upper()
-    return STATE_MAP.get(clean, clean)
 
 def haversine(lat1, lon1, lat2, lon2):
     R = 3958.8
@@ -228,7 +234,7 @@ def process_pod_data(pod_name):
         pool = []
         for t in all_tasks:
             a = t.get('destination', {}).get('address', {})
-            stt = normalize_state(a.get('state', ''))
+            stt = (a.get('state', '') or '').strip().upper()
             if stt in config['states']:
                 pool.append({"id": t['id'], "city": a.get('city', 'Unknown'), "state": stt,
                     "full_addr": f"{a.get('number', '')} {a.get('street', '')}, {a.get('city', '')}, {stt}",
@@ -252,19 +258,16 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     cluster_hash = hashlib.md5("".join(sorted(cluster_task_ids)).encode()).hexdigest()
     sync_key, sent_key = f"sync_{cluster_hash}", f"sent_log_{cluster_hash}"
     real_gas_id = st.session_state.get(sync_key, None)
-    link_id = real_gas_id if real_gas_id else "LINK_GENERATED_UPON_SYNC"
+    link_id = real_gas_id if real_gas_id else "LINK_PENDING"
 
     loc_sum = {}
     for c in cluster['data']:
         addr = c['full_addr']; loc_sum[addr] = loc_sum.get(addr, 0) + 1
     
-    st.markdown("### 📍 Location Overview")
+    st.markdown("### 📍 Route Stops")
     for addr, count in loc_sum.items(): 
-        st.markdown(f"<span style='color:black;'>**{addr}** ({count} Tasks)</span>", unsafe_allow_html=True)
+        st.markdown(f"**{addr}** ({count} Tasks)")
     st.divider()
-
-    if is_sent:
-        st.success("✅ Work Order Synced & Sent Previously")
 
     ic_df = st.session_state.ic_df
     v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].copy()
@@ -274,7 +277,7 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     valid_ics = v_ics[v_ics['d'] <= MAX_DEADHEAD_MILES].sort_values('d').head(5)
 
     if valid_ics.empty:
-        st.error("⚠️ No Contractors nearby."); return
+        st.error("⚠️ No contractors found within 60 miles."); return
 
     ic_opts = {f"{row['Name']} ({round(row['d'], 1)} mi)": row for _, row in valid_ics.iterrows()}
     
@@ -296,39 +299,38 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
         st.markdown(f"""
             <div class="summary-card">
                 <p style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; margin-bottom:8px;">Financials</p>
-                <p style="margin:0; font-size:24px; font-weight:800; color:{TB_RED if is_critical else TB_GREEN};">Total: ${pay:,.2f}</p>
-                <p style="margin:0; font-size:13px; color:#475569;">Effective: ${eff_stop}/stop</p>
+                <p style="margin:0; font-size:24px; font-weight:800; color:{TB_GREEN if not is_critical else '#ef4444'};">Total: ${pay:,.2f}</p>
+                <p style="margin:0; font-size:13px; color:#000000;">Effective: ${eff_stop}/stop</p>
             </div>
         """, unsafe_allow_html=True)
     with m2:
         st.markdown(f"""
             <div class="summary-card">
-                <p style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; margin-bottom:8px;">Round Trip Data</p>
-                <p style="margin:0; font-size:24px; font-weight:800; color:#1e293b;">{t_str}</p>
-                <p style="margin:0; font-size:13px; color:#475569;">Total Mileage: {mi} mi</p>
+                <p style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; margin-bottom:8px;">Logistics</p>
+                <p style="margin:0; font-size:24px; font-weight:800; color:#000000;">{t_str}</p>
+                <p style="margin:0; font-size:13px; color:#000000;">Round Trip: {mi} mi</p>
             </div>
         """, unsafe_allow_html=True)
 
     wo_title = f"{sel_ic['Name']} - {datetime.now().strftime('%m%d%Y')}-{i}"
     loc_lines = [f"{idx + 1}. {a} ({count} Tasks)" for idx, (a, count) in enumerate(loc_sum.items())]
     sig = (f"Work Order: {wo_title}\nContractor: {sel_ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
-           f"Metrics:\n- Unique Stops: {stop_count}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
+           f"Metrics:\n- Stops: {stop_count}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
            f"STOP LOCATIONS:\n" + "\n".join(loc_lines) + f"\n\nAuthorize here:\n{PORTAL_BASE_URL}?route={link_id}&v2=true")
     
-    st.text_area("Final Email Content", sig, height=220, key=f"area_{i}_{pod_name}_{sel_ic['Name']}")
+    st.text_area("Email Content Preview", sig, height=220, key=f"area_{i}_{pod_name}_{sel_ic['Name']}")
 
     col1, col2 = st.columns(2)
     with col1:
         if not real_gas_id:
-            if st.button("☁️ Push to Sheets", key=f"sync_btn_{i}_{pod_name}"):
+            if st.button("☁️ Sync Work Order", key=f"sync_btn_{i}_{pod_name}"):
                 contractor_home = sel_ic['Location']
-                full_round_trip_locs = [contractor_home] + list(loc_sum.keys()) + [contractor_home]
-                
+                full_loop = [contractor_home] + list(loc_sum.keys()) + [contractor_home]
                 payload = {
                     "icn": sel_ic['Name'], "ice": sel_ic['Email'], "wo": wo_title,
                     "due": due.strftime('%Y-%m-%d'), "comp": pay, "lCnt": stop_count,
                     "tCnt": len(cluster['data']), "mi": mi, "time": t_str,
-                    "locs": " | ".join(full_round_trip_locs),
+                    "locs": " | ".join(full_loop),
                     "taskIds": ",".join(cluster_task_ids),
                     "phone": str(sel_ic['Phone']),
                     "jobOnly": " | ".join([f"{a} ({loc_sum[a]} Tasks)" for a in loc_sum])
@@ -338,21 +340,21 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
                     st.session_state[sync_key] = res.get("routeId")
                     st.rerun()
         else:
-            st.button("✅ Data In Sync", disabled=True, key=f"synced_{i}_{pod_name}")
+            st.button("✅ Synced Successfully", disabled=True, key=f"synced_{i}_{pod_name}")
 
     with col2:
         if real_gas_id:
             gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={sel_ic['Email']}&su=Route Request: {wo_title}&body={requests.utils.quote(sig)}"
-            st.markdown(f'<a href="{gmail_url}" target="_blank" style="text-decoration:none;"><div style="text-align:center; background-color:{TB_GREEN}; color:white; padding:12px; border-radius:12px; font-weight:800; box-shadow: 0 4px 10px rgba(118, 188, 33, 0.3);">🚀 SEND GMAIL</div></a>', unsafe_allow_html=True)
-            if st.button("✔️ Finalize & Mark Sent", key=f"mksent_{i}_{pod_name}"):
+            st.markdown(f'<a href="{gmail_url}" target="_blank" class="gmail-btn">🚀 SEND GMAIL NOW</a>', unsafe_allow_html=True)
+            if st.button("✔️ Mark as Finalized", key=f"mksent_{i}_{pod_name}"):
                 requests.post(GAS_WEB_APP_URL, json={"action": "markSent", "routeId": real_gas_id})
                 st.session_state[sent_key] = {"contractor": sel_ic['Name'], "time": datetime.now().strftime("%I:%M %p")}
                 st.rerun()
 
 def run_pod_tab(pod_name):
-    st.markdown(f"## {pod_name}")
+    st.markdown(f"## {pod_name} Command")
     if f"clusters_{pod_name}" not in st.session_state:
-        if st.button(f"📥 Load Data", key=f"init_{pod_name}"): process_pod_data(pod_name); st.rerun()
+        if st.button(f"📥 Initialize {pod_name}", key=f"init_{pod_name}"): process_pod_data(pod_name); st.rerun()
         return
     clusters = st.session_state[f"clusters_{pod_name}"]
     sent_db = st.session_state.get("sent_db", set())
@@ -373,11 +375,11 @@ def run_pod_tab(pod_name):
         else: review.append(c)
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Volume", len(clusters))
-    c2.metric("Ready", len(ready))
-    c3.metric("Active", len(sent))
-    c4.metric("Flagged", len(review))
-    if c5.button("🔄 Reload"): 
+    c1.markdown(f"<div class='overview-metric'><p style='margin:0; font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase;'>Volume</p><p style='margin:0; font-size:24px; font-weight:800;'>{len(clusters)}</p></div>", unsafe_allow_html=True)
+    c2.markdown(f"<div class='overview-metric'><p style='margin:0; font-size:10px; font-weight:800; color:#10b981; text-transform:uppercase;'>Ready</p><p style='margin:0; font-size:24px; font-weight:800;'>{len(ready)}</p></div>", unsafe_allow_html=True)
+    c3.markdown(f"<div class='overview-metric'><p style='margin:0; font-size:10px; font-weight:800; color:#3b82f6; text-transform:uppercase;'>Active</p><p style='margin:0; font-size:24px; font-weight:800;'>{len(sent)}</p></div>", unsafe_allow_html=True)
+    c4.markdown(f"<div class='overview-metric'><p style='margin:0; font-size:10px; font-weight:800; color:#ef4444; text-transform:uppercase;'>Flagged</p><p style='margin:0; font-size:24px; font-weight:800;'>{len(review)}</p></div>", unsafe_allow_html=True)
+    if c5.button("🔄 Sync Network"): 
         st.session_state.sent_db = load_sent_records_from_sheet(IC_SHEET_URL)
         process_pod_data(pod_name); st.rerun()
 
@@ -393,14 +395,14 @@ def run_pod_tab(pod_name):
             with st.expander(f"{c['city']}, {c['state']} | {c['unique_count']} Stops"): render_dispatch_logic(i, c, pod_name)
     with t2:
         for i, c in enumerate(sent):
-            with st.expander(f"✓ {c['city']}, {c['state']} | {c['unique_count']} Stops"): render_dispatch_logic(i+500, c, pod_name, is_sent=True)
+            with st.expander(f"📧 {c['city']}, {c['state']} | {c['unique_count']} Stops"): render_dispatch_logic(i+500, c, pod_name, is_sent=True)
     with t3:
         for i, c in enumerate(review):
             with st.expander(f"🔴 {c['city']}, {c['state']} | {c['unique_count']} Stops"): render_dispatch_logic(i+1000, c, pod_name)
 
 def run_global_tab():
     st.markdown("## Global Network Sync")
-    if st.button("🚀 Execute Global Sweep"):
+    if st.button("🚀 Sync All Network Pods"):
         st.session_state.sent_db = load_sent_records_from_sheet(IC_SHEET_URL)
         for pod in POD_CONFIGS.keys(): process_pod_data(pod)
         st.rerun()
@@ -408,7 +410,7 @@ def run_global_tab():
 if "ic_df" not in st.session_state: st.session_state.ic_df = load_ic_database(IC_SHEET_URL)
 if "sent_db" not in st.session_state: st.session_state.sent_db = load_sent_records_from_sheet(IC_SHEET_URL)
 
-st.markdown("<h1>Workspace Command</h1>", unsafe_allow_html=True)
+st.markdown("<h1>Terraboost Tactical Workspace</h1>", unsafe_allow_html=True)
 tabs = st.tabs(["Global Network", "Blue Pod", "Green Pod", "Orange Pod", "Purple Pod", "Red Pod"])
 with tabs[0]: run_global_tab()
 with tabs[1]: run_pod_tab("Blue Pod")
