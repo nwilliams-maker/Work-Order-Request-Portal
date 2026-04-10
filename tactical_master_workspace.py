@@ -55,7 +55,7 @@ headers = {"Authorization": f"Basic {base64.b64encode(f'{ONFLEET_KEY}:'.encode()
 
 st.set_page_config(page_title="Network Command Center", layout="wide")
 
-# --- UI STYLING (Modernized Tabs + Refined Fields) ---
+# --- UI STYLING (Fixed Input Visibility) ---
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
@@ -66,108 +66,82 @@ st.markdown(f"""
         font-family: 'Inter', sans-serif !important; 
     }}
     
-    h1, h2, h3 {{ color: #1e293b !important; font-weight: 800 !important; letter-spacing: -0.02em; }}
-
-    /* MODERN NAVIGATION (TABS) */
+    /* Modern Nav Pills */
     .stTabs [data-baseweb="tab-list"] {{
-        gap: 10px;
-        background-color: rgba(255, 255, 255, 0.3);
-        padding: 10px;
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        margin-bottom: 20px;
+        gap: 8px;
+        background-color: rgba(15, 23, 42, 0.05);
+        padding: 8px;
+        border-radius: 12px;
     }}
 
     .stTabs [data-baseweb="tab"] {{
-        height: 45px;
-        white-space: pre;
         background-color: transparent;
-        border-radius: 10px;
+        border-radius: 8px;
         color: #475569 !important;
         font-weight: 600;
         border: none !important;
-        transition: all 0.3s ease;
-        padding: 0 20px;
+        padding: 8px 16px;
     }}
 
     .stTabs [aria-selected="true"] {{
         background-color: white !important;
         color: {TB_PURPLE} !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        transform: scale(1.02);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
     }}
 
-    /* Expander styling */
+    /* Card Visibility */
     div[data-testid="stExpander"] {{ 
         border: 1px solid #94a3b8 !important; 
-        border-radius: 20px !important; 
+        border-radius: 16px !important; 
         background-color: #FFFFFF !important;
-        margin-bottom: 16px; 
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
+        margin-bottom: 12px; 
     }}
     
     div[data-testid="stExpander"] details summary p {{ 
-        color: #0f172a !important; 
-        font-weight: 700 !important; 
-        font-size: 18px !important; 
+        color: #000000 !important; 
+        font-weight: 800 !important; 
     }}
 
-    /* Light, Clean Input Fields */
+    /* FIXED INPUT FIELDS: Ensure they don't blend into the background */
     div[data-baseweb="select"] > div, 
     div[data-testid="stNumberInput"] input, 
     div[data-testid="stDateInput"] input {{
-        background-color: #f8fafc !important;
-        color: #0f172a !important;
-        border: 1.5px solid #e2e8f0 !important;
-        border-radius: 12px !important;
-        padding: 8px 12px !important;
+        background-color: #f1f5f9 !important; /* Subtle gray background */
+        color: #0f172a !important; /* Dark navy text */
+        border: 1.5px solid #cbd5e1 !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
     }}
     
-    /* Email Payload Box - Refined Blue */
+    /* Ensure the actual text inside selectbox is visible */
+    div[data-baseweb="select"] span {{
+        color: #0f172a !important;
+    }}
+
     div[data-testid="stTextArea"] textarea {{
-        background-color: #f1f7ff !important;
-        color: #1e3a8a !important;
-        border: 1.5px solid #d0e3ff !important;
-        border-radius: 14px !important;
-        font-family: 'Inter', sans-serif !important;
+        background-color: {TB_LIGHT_BLUE} !important;
+        color: #000000 !important;
+        border: 1px solid #94a3b8 !important;
+        border-radius: 12px !important;
         font-size: 14px !important;
-        font-weight: 500 !important;
     }}
 
     .summary-card {{
         background: #f8fafc;
         border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 18px;
-        margin-bottom: 12px;
+        border-radius: 12px;
+        padding: 15px;
     }}
 
-    .metric-box {{ 
-        border-radius: 16px; 
-        padding: 18px; 
-        background: white; 
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-        border: 1px solid #e2e8f0;
-    }}
-    
     .stButton>button {{ 
         background-color: {TB_PURPLE} !important; 
         color: #FFFFFF !important; 
         font-weight: 700 !important; 
-        border-radius: 12px !important; 
-        height: 3.5em !important;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 10px !important; 
         border: none !important;
     }}
     
-    .stButton>button:hover {{ 
-        background-color: #4c1d95 !important;
-        transform: translateY(-2px);
-        box-shadow: 0 8px 15px rgba(99, 48, 148, 0.3);
-    }}
-    
-    div[data-testid="stWidgetLabel"] p {{ color: #64748b !important; font-weight: 800 !important; text-transform: uppercase; font-size: 11px !important; letter-spacing: 0.08em; }}
+    div[data-testid="stWidgetLabel"] p {{ color: #475569 !important; font-weight: 700 !important; font-size: 12px !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -226,6 +200,7 @@ def load_ic_database(sheet_url):
         return pd.read_csv(export_url)
     except: return None
 
+# --- PROCESSING ---
 def process_pod_data(pod_name):
     config = POD_CONFIGS[pod_name]
     ui_container = st.empty()
@@ -359,7 +334,7 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     with col2:
         if real_gas_id:
             gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={sel_ic['Email']}&su=Route Request: {wo_title}&body={requests.utils.quote(sig)}"
-            st.markdown(f'<a href="{gmail_url}" target="_blank" style="text-decoration:none;"><div style="text-align:center; background-color:{TB_GREEN}; color:white; padding:12px; border-radius:12px; font-weight:800; border:none; box-shadow: 0 4px 10px rgba(118, 188, 33, 0.3);">🚀 SEND GMAIL</div></a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="{gmail_url}" target="_blank" style="text-decoration:none;"><div style="text-align:center; background-color:{TB_GREEN}; color:white; padding:12px; border-radius:12px; font-weight:800; box-shadow: 0 4px 10px rgba(118, 188, 33, 0.3);">🚀 SEND GMAIL</div></a>', unsafe_allow_html=True)
             if st.button("✔️ Finalize & Mark Sent", key=f"mksent_{i}_{pod_name}"):
                 requests.post(GAS_WEB_APP_URL, json={"action": "markSent", "routeId": real_gas_id})
                 st.session_state[sent_key] = {"contractor": sel_ic['Name'], "time": datetime.now().strftime("%I:%M %p")}
@@ -389,10 +364,10 @@ def run_pod_tab(pod_name):
         else: review.append(c)
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.markdown(f"<div class='metric-box'><div style='font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase;'>Volume</div><div style='font-size:24px; font-weight:800;'>{len(clusters)}</div></div>", unsafe_allow_html=True)
-    c2.markdown(f"<div class='metric-box'><div style='font-size:10px; font-weight:800; color:#10b981; text-transform:uppercase;'>Ready</div><div style='font-size:24px; font-weight:800;'>{len(ready)}</div></div>", unsafe_allow_html=True)
-    c3.markdown(f"<div class='metric-box'><div style='font-size:10px; font-weight:800; color:#3b82f6; text-transform:uppercase;'>Active</div><div style='font-size:24px; font-weight:800;'>{len(sent)}</div></div>", unsafe_allow_html=True)
-    c4.markdown(f"<div class='metric-box'><div style='font-size:10px; font-weight:800; color:#ef4444; text-transform:uppercase;'>Flagged</div><div style='font-size:24px; font-weight:800;'>{len(review)}</div></div>", unsafe_allow_html=True)
+    c1.metric("Volume", len(clusters))
+    c2.metric("Ready", len(ready))
+    c3.metric("Active", len(sent))
+    c4.metric("Flagged", len(review))
     if c5.button("🔄 Reload"): 
         st.session_state.sent_db = load_sent_records_from_sheet(IC_SHEET_URL)
         process_pod_data(pod_name); st.rerun()
