@@ -5,6 +5,7 @@ import math
 import pandas as pd
 import time
 import hashlib
+import json
 from datetime import datetime, timedelta
 from streamlit_folium import st_folium
 import folium
@@ -16,7 +17,7 @@ PORTAL_BASE_URL = "https://nwilliams-maker.github.io/Route-Authorization-Portal/
 GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbynAIziubArSQ0hVGTvJMpk11a9yLP0kNcSmGpcY7GDNRT25Po5p92K3EDslx9VycKC/exec"
 IC_SHEET_URL = "https://docs.google.com/spreadsheets/d/1y6wX0x93iDc3gdK_nZKLD-2QcGkUHkcM75u90ffRO6k/edit#gid=0"
 
-# UPDATED: GID for the "Saved_Routes" tab
+# GID for the "Saved_Routes" tab (Confirmed)
 SAVED_ROUTES_GID = "1477617688" 
 
 MAX_DEADHEAD_MILES = 60
@@ -85,10 +86,29 @@ def load_sent_records_from_sheet(sheet_url):
         export_url = f"{sheet_url.split('/edit')[0]}/export?format=csv&gid={SAVED_ROUTES_GID}"
         df = pd.read_csv(export_url)
         sent_tasks = set()
-        for ids in df['taskIds'].dropna():
-            sent_tasks.update(str(ids).split(','))
+        
+        # Standardize columns to find 'json payload' or 'taskids'
+        df.columns = [c.strip().lower() for c in df.columns]
+        
+        # Method A: Extract from JSON Payload (Matches your recent sheet structure)
+        if 'json payload' in df.columns:
+            for payload_str in df['json payload'].dropna():
+                try:
+                    payload_data = json.loads(payload_str)
+                    t_ids = payload_data.get('taskIds', '')
+                    if t_ids:
+                        split_ids = str(t_ids).replace('|', ',').split(',')
+                        sent_tasks.update([tid.strip() for tid in split_ids])
+                except: continue
+        
+        # Method B: Direct 'taskids' column fallback
+        if 'taskids' in df.columns:
+            for ids in df['taskids'].dropna().astype(str):
+                split_ids = ids.replace('|', ',').split(',')
+                sent_tasks.update([tid.strip() for tid in split_ids])
+                
         return sent_tasks
-    except Exception as e:
+    except:
         return set()
 
 def normalize_state(st_str):
@@ -162,7 +182,8 @@ def process_pod_data(pod_name):
 
 # --- DISPATCH RENDER ---
 def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
-    cluster_hash = hashlib.md5("".join(sorted([t['id'] for t in cluster['data']])).encode()).hexdigest()
+    cluster_task_ids = [str(t['id']).strip() for t in cluster['data']]
+    cluster_hash = hashlib.md5("".join(sorted(cluster_task_ids)).encode()).hexdigest()
     sync_key, sent_key = f"sync_{cluster_hash}", f"sent_log_{cluster_hash}"
     real_gas_id = st.session_state.get(sync_key, None)
     link_id = real_gas_id if real_gas_id else "LINK_GENERATED_UPON_SYNC"
@@ -174,7 +195,7 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     st.divider()
 
     if is_sent:
-        st.info("📧 **This route is in the Sent group (Records found in Saved_Routes).**")
+        st.info("📧 **This route is verified as SENT (Records found in Saved_Routes).**")
 
     ic_df = st.session_state.ic_df
     v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].copy()
@@ -231,7 +252,7 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
                     "mi": mi,
                     "time": t_str,
                     "locs": " | ".join(list(loc_sum.keys())),
-                    "taskIds": ",".join([t['id'] for t in cluster['data']])
+                    "taskIds": ",".join(cluster_task_ids)
                 }
                 res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
                 if res.get("success"):
@@ -261,6 +282,7 @@ def run_pod_tab(pod_name):
     if f"clusters_{pod_name}" not in st.session_state:
         if st.button(f"📥 Initialize {pod_name}", key=f"init_{pod_name}"): process_pod_data(pod_name); st.rerun()
         return
+    
     clusters = st.session_state[f"clusters_{pod_name}"]
     ic_df = st.session_state.ic_df
     sent_db = st.session_state.get("sent_db", set())
@@ -269,9 +291,8 @@ def run_pod_tab(pod_name):
     ready, review, sent = [], [], []
     
     for c in clusters:
-        cluster_task_ids = [t['id'] for t in c['data']]
+        cluster_task_ids = [str(t['id']).strip() for t in c['data']]
         already_sent_in_sheet = any(tid in sent_db for tid in cluster_task_ids)
-        
         c_h = hashlib.md5("".join(sorted(cluster_task_ids)).encode()).hexdigest()
         
         if f"sent_log_{c_h}" in st.session_state or already_sent_in_sheet: 
