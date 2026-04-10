@@ -197,7 +197,7 @@ def load_ic_database(sheet_url):
         return pd.read_csv(export_url)
     except: return None
 
-# --- CORE LOGIC (With Dynamic Pruning & Real IC Routing) ---
+# --- CORE LOGIC ---
 def process_pod(pod_name):
     config = POD_CONFIGS[pod_name]
     progress_bar = st.progress(0, text=f"📥 Extracting {pod_name} tasks & evaluating dense routes...")
@@ -359,11 +359,15 @@ def render_dispatch(cluster, pod_name, is_sent=False):
     with m1: st.markdown(f"<div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:15px; margin-bottom:10px;'><p style='font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>Financials</p><p style='margin:0; font-size:24px; font-weight:800; color:{TB_GREEN if eff_stop <= 23.00 else '#ef4444'};'>Total: ${pay:,.2f}</p><p style='margin:0; font-size:13px; color:#000000;'>Effective: ${eff_stop}/stop</p></div>", unsafe_allow_html=True)
     with m2: st.markdown(f"<div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:15px; margin-bottom:10px;'><p style='font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>Logistics</p><p style='margin:0; font-size:24px; font-weight:800; color:#000000;'>{t_str}</p><p style='margin:0; font-size:13px; color:#000000;'>Round Trip: {mi} mi</p></div>", unsafe_allow_html=True)
 
-    sig = (f"Work Order: {ic['Name']} - {datetime.now().strftime('%m%d%Y')}\nContractor: {ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
+    # UNIFIED WORK ORDER NUMBER (Name - Date)
+    wo_val = f"{ic['Name']} - {datetime.now().strftime('%m%d%Y')}"
+
+    sig = (f"Work Order: {wo_val}\nContractor: {ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
            f"Metrics:\n- Stops: {cluster['stops']}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
            f"Authorize here:\n{PORTAL_BASE_URL}?route={link_id}&v2=true")
     
-    st.text_area("Email Content Preview", sig, height=180, key=f"tx_{cluster_hash}")
+    # REACTIVE TEXT AREA: Key is dynamically tied to the contractor, pay, and due date so it auto-refreshes
+    st.text_area("Email Content Preview", sig, height=180, key=f"tx_{cluster_hash}_{ic['Name']}_{pay}_{due}")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -371,7 +375,7 @@ def render_dispatch(cluster, pod_name, is_sent=False):
             if st.button("☁️ Push & Generate Link", key=f"btn_s_{cluster_hash}"):
                 home = ic['Location']
                 payload = {
-                    "icn": ic['Name'], "ice": ic['Email'], "wo": f"{ic['Name']}-{cluster_hash[:5]}", 
+                    "icn": ic['Name'], "ice": ic['Email'], "wo": wo_val, 
                     "due": str(due), "comp": pay, "lCnt": cluster['stops'], "mi": mi, "time": t_str, "phone": str(ic['Phone']),
                     "locs": " | ".join([home] + list(loc_sum.keys()) + [home]),
                     "taskIds": ",".join(task_ids),
