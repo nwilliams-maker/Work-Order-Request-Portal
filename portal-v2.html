@@ -194,14 +194,25 @@
                 // Hide the form UI
                 document.getElementById('icMode').classList.add('hidden');
                 
-                // --- DYNAMIC SUCCESS WINDOW ---
+                // --- TRUE DYNAMIC SUCCESS WINDOW ---
                 const successContainer = document.getElementById('successView');
                 if (decision === 'Accepted') {
-                    successContainer.innerHTML = `
-                        <div class="text-7xl mb-6">✅</div>
-                        <h2 class="text-4xl font-black uppercase text-slate-900 tracking-tight">Tasks Assigned!</h2>
-                        <p class="text-slate-500 mt-4 font-medium text-lg">The route has been successfully pushed to your Onfleet app.<br>You may now close this window.</p>
-                    `;
+                    if (result.onfleetSuccess) {
+                        successContainer.innerHTML = `
+                            <div class="text-7xl mb-6">✅</div>
+                            <h2 class="text-4xl font-black uppercase text-slate-900 tracking-tight">Tasks Assigned!</h2>
+                            <p class="text-slate-500 mt-4 font-medium text-lg">The route has been successfully pushed to your Onfleet app.<br>You may now close this window.</p>
+                        `;
+                    } else {
+                        // ONFLEET FAILED UI
+                        successContainer.innerHTML = `
+                            <div class="text-7xl mb-6">⚠️</div>
+                            <h2 class="text-4xl font-black uppercase text-slate-900 tracking-tight">Route Accepted, BUT...</h2>
+                            <p class="text-red-500 mt-4 font-bold text-lg">We couldn't automatically push the tasks to your Onfleet app.</p>
+                            <p class="text-slate-500 mt-2 font-medium text-sm">Error: ${result.onfleetMsg}</p>
+                            <p class="text-slate-500 mt-6 font-medium text-sm">Our dispatch team has been notified and will manually assign your tasks shortly.</p>
+                        `;
+                    }
                 } else {
                     successContainer.innerHTML = `
                         <div class="text-7xl mb-6">✅</div>
