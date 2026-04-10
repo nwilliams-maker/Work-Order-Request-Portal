@@ -379,6 +379,7 @@ def render_dispatch(cluster, pod_name, is_sent=False):
                     "due": str(due), "comp": pay, "lCnt": cluster['stops'], "mi": mi, "time": t_str, "phone": str(ic['Phone']),
                     "locs": " | ".join([home] + list(loc_sum.keys()) + [home]),
                     "taskIds": ",".join(task_ids),
+                    "tCnt": len(task_ids),
                     "jobOnly": " | ".join([f"{a} ({c} Tasks)" for a,c in loc_sum.items()])
                 }
                 res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
