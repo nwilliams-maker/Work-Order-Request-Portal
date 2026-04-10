@@ -18,10 +18,10 @@ GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbynAIziubArSQ0hVGTvJM
 IC_SHEET_URL = "https://docs.google.com/spreadsheets/d/1y6wX0x93iDc3gdK_nZKLD-2QcGkUHkcM75u90ffRO6k/edit#gid=0"
 SAVED_ROUTES_GID = "1477617688" 
 
-# Palette Adjustments based on your request
-TB_NEW_FILL = "#cbd5e1"  # The new fill for buttons/accents
-TB_APP_BG = "#f1f5f9"    # Lightened app bg so the cbd5e1 fill stands out
+# Terraboost Media Brand Palette
+TB_PURPLE = "#633094"
 TB_GREEN = "#76bc21"
+TB_GRAY_BG = "#cbd5e1"
 TB_OFF_WHITE = "#f8fafc"
 TB_LIGHT_BLUE = "#f0f7ff"
 
@@ -55,7 +55,7 @@ st.set_page_config(page_title="Tactical Command", layout="wide")
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-    .stApp {{ background-color: {TB_APP_BG} !important; color: #000000 !important; font-family: 'Inter', sans-serif !important; }}
+    .stApp {{ background-color: #f1f5f9 !important; color: #000000 !important; font-family: 'Inter', sans-serif !important; }}
     .main .block-container {{ max-width: 1100px !important; padding-top: 2rem; }}
     
     h1, h2, h3, h4, h5, h6 {{ color: #000000 !important; font-weight: 800 !important; }}
@@ -69,16 +69,18 @@ st.markdown(f"""
     .stTabs [data-baseweb="tab"]:nth-of-type(4) {{ background-color: #ffedd5 !important; color: #000000 !important; }}
     .stTabs [data-baseweb="tab"]:nth-of-type(5) {{ background-color: #f3e8ff !important; color: #000000 !important; }}
     .stTabs [data-baseweb="tab"]:nth-of-type(6) {{ background-color: #fee2e2 !important; color: #000000 !important; }}
-    .stTabs [aria-selected="true"] {{ transform: scale(1.05); border: 2px solid {TB_NEW_FILL} !important; }}
+    .stTabs [aria-selected="true"] {{ transform: scale(1.05); border: 2px solid {TB_PURPLE} !important; }}
 
     div[data-testid="stExpander"] {{ border: 1px solid #94a3b8 !important; border-radius: 15px !important; background: #fff !important; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); margin-bottom: 20px; }}
     div[data-testid="stExpander"] details summary p {{ color: #000000 !important; font-weight: 800 !important; }}
     
     div[data-baseweb="select"] > div, div[data-testid="stNumberInput"] input, div[data-testid="stDateInput"] input {{ background-color: #ffffff !important; color: #000000 !important; border: 1.5px solid #cbd5e1 !important; }}
     
-    /* Changed all button fills to cbd5e1 and text to black */
-    .stButton>button {{ background-color: {TB_NEW_FILL} !important; color: #000000 !important; font-weight: 800 !important; border-radius: 12px !important; width: 100%; border: 1px solid #94a3b8 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
-    .gmail-btn {{ text-align: center; background-color: {TB_NEW_FILL} !important; color: #000000 !important; padding: 12px; border-radius: 12px; font-weight: 800; display: block; text-decoration: none; border: 1px solid #94a3b8 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
+    /* Terraboost Purple Primary Buttons */
+    .stButton>button {{ background-color: {TB_PURPLE} !important; color: #FFFFFF !important; font-weight: 800 !important; border-radius: 12px !important; width: 100%; border: none !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s ease; }}
+    .stButton>button:hover {{ transform: translateY(-2px); box-shadow: 0 6px 10px rgba(0,0,0,0.15); }}
+    
+    .gmail-btn {{ text-align: center; background-color: {TB_GREEN} !important; color: white !important; padding: 12px; border-radius: 12px; font-weight: 800; display: block; text-decoration: none; border: none !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
     
     div[data-testid="stMetricValue"] > div {{ color: #000000 !important; }}
     </style>
@@ -132,7 +134,7 @@ def load_ic_database(sheet_url):
         return pd.read_csv(export_url)
     except: return None
 
-# --- CORE LOGIC (With Route Pruning) ---
+# --- CORE LOGIC (With Pruning & 60-Mile IC Gate) ---
 def process_pod(pod_name):
     config = POD_CONFIGS[pod_name]
     progress_bar = st.progress(0, text=f"📥 Extracting {pod_name} tasks & evaluating dense routes...")
@@ -159,6 +161,12 @@ def process_pod(pod_name):
         clusters = []
         total_pool = len(pool)
         
+        # Pre-load IC Data to check for nearby contractors during clustering
+        ic_df = st.session_state.get('ic_df', pd.DataFrame())
+        v_ics_base = pd.DataFrame()
+        if not ic_df.empty:
+            v_ics_base = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy()
+
         while pool:
             prog_val = 0.4 + (0.6 * (1 - (len(pool) / total_pool if total_pool > 0 else 1)))
             progress_bar.progress(min(prog_val, 0.99), text=f"🗺️ Auto-routing {pod_name}... ({len(pool)} tasks remaining)")
@@ -189,6 +197,7 @@ def process_pod(pod_name):
             gate_avg, u_count = check_viability(group)
             status = "Ready"
             
+            # Pruning Logic
             if gate_avg > 23.0 and len(group) > 1:
                 removed_stops = []
                 passed = False
@@ -205,6 +214,19 @@ def process_pod(pod_name):
                 else:
                     group.extend(removed_stops[::-1])
                     status = "Flagged"
+            elif gate_avg > 23.0:
+                status = "Flagged"
+            
+            # 60-MILE CONTRACTOR CHECK
+            has_ic = False
+            if not v_ics_base.empty:
+                dists = v_ics_base.apply(lambda x: haversine(anc['lat'], anc['lon'], x['Lat'], x['Lng']), axis=1)
+                if (dists <= 60).any():
+                    has_ic = True
+            
+            # If no contractor is nearby, push straight to Flagged regardless of financials
+            if not has_ic:
+                status = "Flagged"
             
             pool = rem
             clusters.append({
@@ -212,7 +234,8 @@ def process_pod(pod_name):
                 "center": [anc['lat'], anc['lon']], 
                 "stops": len(set(x['full'] for x in group)), 
                 "city": anc['city'], "state": anc['state'],
-                "status": status
+                "status": status,
+                "has_ic": has_ic
             })
             
         st.session_state[f"clusters_{pod_name}"] = clusters
@@ -234,6 +257,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
     for addr, count in loc_sum.items(): st.markdown(f"**{addr}** ({count} Tasks)")
     st.divider()
 
+    # Contractor logic
     ic_df = st.session_state.get('ic_df', pd.DataFrame())
     v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy()
     
@@ -241,8 +265,10 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
         v_ics['d'] = v_ics.apply(lambda x: haversine(cluster['center'][0], cluster['center'][1], x['Lat'], x['Lng']), axis=1)
         v_ics = v_ics[v_ics['d'] <= 60].sort_values('d').head(5)
 
+    # If Flagged because of NO CONTRACTOR, display warning and stop render block
     if v_ics.empty:
-        st.error("No contractors found within 60 miles."); return
+        st.error("⚠️ No contractors found within 60 miles. Manual recruiting or assignment required.")
+        return
 
     ic_opts = {f"{r['Name']} ({round(r['d'],1)} mi)": r for _, r in v_ics.iterrows()}
     col_a, col_b, col_c = st.columns([2,1,1])
@@ -359,7 +385,8 @@ def run_pod_tab(pod_name):
             with st.expander(f"✓ {ic_name} | {c['city']}, {c['state']} | {c['stops']} Stops"): render_dispatch(i+500, c, pod_name, is_sent=True)
     with t_rev:
         for i, c in enumerate(review):
-            with st.expander(f"🔴 {c['city']}, {c['state']} | {c['stops']} Stops"): render_dispatch(i+1000, c, pod_name)
+            status_emoji = "🔴" if c.get('has_ic') else "⚠" 
+            with st.expander(f"{status_emoji} {c['city']}, {c['state']} | {c['stops']} Stops"): render_dispatch(i+1000, c, pod_name)
 
 # --- START ---
 if "ic_df" not in st.session_state:
