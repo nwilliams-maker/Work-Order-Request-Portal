@@ -55,7 +55,7 @@ headers = {"Authorization": f"Basic {base64.b64encode(f'{ONFLEET_KEY}:'.encode()
 
 st.set_page_config(page_title="Network Command Center", layout="wide")
 
-# --- UI STYLING (Forcing Black Text) ---
+# --- UI STYLING (Forced Black Text) ---
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
@@ -69,9 +69,9 @@ st.markdown(f"""
     .metric-value {{ font-size: 20px; color: #000000 !important; font-weight: 800; }}
     .stButton>button {{ background-color: {TB_PURPLE} !important; color: #000000 !important; font-weight: 700 !important; border-radius: 6px !important; width: 100%; border: 1px solid #323338 !important; }}
     .stButton>button:hover {{ background-color: {TB_GREEN} !important; color: #000000 !important; }}
-    /* Ensure all input labels and text areas are black */
     div[data-testid="stWidgetLabel"] p {{ color: #000000 !important; font-weight: 700 !important; }}
     textarea {{ color: #000000 !important; }}
+    .stTabs [data-baseweb="tab"] {{ color: #000000 !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -294,9 +294,9 @@ def run_pod_tab(pod_name):
         else: review.append(c)
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.markdown(f"<div class='metric-box'><div class='metric-title'>Total</div><div class='metric-value'>{len(clusters)}</div></div>", unsafe_allow_html=True)
-    c2.markdown(f"<div class='metric-box'><div class='metric-title' style='color:#000000'>Ready</div><div class='metric-value'>{len(ready)}</div></div>", unsafe_allow_html=True)
-    c3.markdown(f"<div class='metric-box'><div class='metric-title' style='color:#000000'>Sent</div><div class='metric-value'>{len(sent)}</div></div>", unsafe_allow_html=True)
-    c4.markdown(f"<div class='metric-box'><div class='metric-title' style='color:#000000'>Review</div><div class='metric-value'>{len(review)}</div></div>", unsafe_allow_html=True)
+    c2.markdown(f"<div class='metric-box'><div class='metric-title'>Ready</div><div class='metric-value'>{len(ready)}</div></div>", unsafe_allow_html=True)
+    c3.markdown(f"<div class='metric-box'><div class='metric-title'>Sent</div><div class='metric-value'>{len(sent)}</div></div>", unsafe_allow_html=True)
+    c4.markdown(f"<div class='metric-box'><div class='metric-title'>Review</div><div class='metric-value'>{len(review)}</div></div>", unsafe_allow_html=True)
     if c5.button("🔄 Refresh", key=f"ref_{pod_name}"): 
         st.session_state.sent_db = load_sent_records_from_sheet(IC_SHEET_URL)
         process_pod_data(pod_name)
