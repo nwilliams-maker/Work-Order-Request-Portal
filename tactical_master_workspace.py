@@ -17,7 +17,6 @@ PORTAL_BASE_URL = "https://nwilliams-maker.github.io/Route-Authorization-Portal/
 GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbynAIziubArSQ0hVGTvJMpk11a9yLP0kNcSmGpcY7GDNRT25Po5p92K3EDslx9VycKC/exec"
 IC_SHEET_URL = "https://docs.google.com/spreadsheets/d/1y6wX0x93iDc3gdK_nZKLD-2QcGkUHkcM75u90ffRO6k/edit#gid=0"
 
-# GID for the "Saved_Routes" tab (Confirmed)
 SAVED_ROUTES_GID = "1477617688" 
 
 MAX_DEADHEAD_MILES = 60
@@ -54,7 +53,7 @@ STATE_MAP = {
 
 headers = {"Authorization": f"Basic {base64.b64encode(f'{ONFLEET_KEY}:'.encode()).decode()}"}
 
-st.set_page_config(page_title="Terraboost Tactical Workspace", layout="wide")
+st.set_page_config(page_title="Network Command Center", layout="wide")
 
 # --- UI STYLING ---
 st.markdown(f"""
@@ -65,15 +64,9 @@ st.markdown(f"""
     div[data-testid="stExpander"] {{ border: 1px solid #d0d4e4 !important; border-radius: 8px !important; margin-bottom: 12px; }}
     div[data-testid="stExpander"] details summary {{ background-color: {TB_LIGHT_BLUE} !important; padding: 12px !important; border-radius: 8px 8px 0 0 !important; }}
     div[data-testid="stExpander"] details summary p {{ color: #1e293b !important; font-weight: 700 !important; font-size: 16px !important; }}
-    div[data-testid="stWidgetLabel"] p {{ color: #000000 !important; font-weight: 700 !important; font-size: 14px !important; opacity: 1 !important; }}
-    .stTextInput input, .stNumberInput input, .stDateInput input, div[data-baseweb="select"] > div {{ background-color: #FFFFFF !important; color: #000000 !important; border: 1px solid #323338 !important; opacity: 1 !important; }}
-    div[data-testid="stTextArea"] textarea {{ color: #000000 !important; background-color: #FFFFFF !important; border: 1px solid #323338 !important; font-weight: 600 !important; opacity: 1 !important; }}
-    div[data-testid="stTextArea"] label p {{ color: #000000 !important; font-weight: 800 !important; }}
     .metric-box {{ border-left: 5px solid {TB_PURPLE}; padding: 12px 15px; margin-bottom: 15px; background: white; border-radius: 0 4px 4px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
     .metric-title {{ font-size: 11px; text-transform: uppercase; color: #444444 !important; font-weight: 800; }}
     .metric-value {{ font-size: 20px; color: {TB_PURPLE} !important; font-weight: 800; }}
-    .stTabs [data-baseweb="tab"] {{ color: #444444 !important; font-weight: 600 !important; }}
-    .stTabs [aria-selected="true"] {{ color: {TB_PURPLE} !important; border-bottom: 3px solid {TB_GREEN} !important; }}
     .stButton>button {{ background-color: {TB_PURPLE} !important; color: #FFFFFF !important; font-weight: 700 !important; border-radius: 6px !important; width: 100%; }}
     .stButton>button:hover {{ background-color: {TB_GREEN} !important; }}
     </style>
@@ -86,11 +79,7 @@ def load_sent_records_from_sheet(sheet_url):
         export_url = f"{sheet_url.split('/edit')[0]}/export?format=csv&gid={SAVED_ROUTES_GID}"
         df = pd.read_csv(export_url)
         sent_tasks = set()
-        
-        # Standardize columns to find 'json payload' or 'taskids'
         df.columns = [c.strip().lower() for c in df.columns]
-        
-        # Method A: Extract from JSON Payload (Matches your recent sheet structure)
         if 'json payload' in df.columns:
             for payload_str in df['json payload'].dropna():
                 try:
@@ -100,16 +89,12 @@ def load_sent_records_from_sheet(sheet_url):
                         split_ids = str(t_ids).replace('|', ',').split(',')
                         sent_tasks.update([tid.strip() for tid in split_ids])
                 except: continue
-        
-        # Method B: Direct 'taskids' column fallback
         if 'taskids' in df.columns:
             for ids in df['taskids'].dropna().astype(str):
                 split_ids = ids.replace('|', ',').split(',')
                 sent_tasks.update([tid.strip() for tid in split_ids])
-                
         return sent_tasks
-    except:
-        return set()
+    except: return set()
 
 def normalize_state(st_str):
     if not st_str: return "UNKNOWN"
@@ -180,7 +165,6 @@ def process_pod_data(pod_name):
         st.session_state[f"clusters_{pod_name}"] = clusters
     ui_container.empty()
 
-# --- DISPATCH RENDER ---
 def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     cluster_task_ids = [str(t['id']).strip() for t in cluster['data']]
     cluster_hash = hashlib.md5("".join(sorted(cluster_task_ids)).encode()).hexdigest()
@@ -195,7 +179,7 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     st.divider()
 
     if is_sent:
-        st.info("📧 **This route is verified as SENT (Records found in Saved_Routes).**")
+        st.info("📧 **SENT Record (Saved_Routes)**")
 
     ic_df = st.session_state.ic_df
     v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].copy()
@@ -205,7 +189,7 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     valid_ics = v_ics[v_ics['d'] <= MAX_DEADHEAD_MILES].sort_values('d').head(5)
 
     if valid_ics.empty:
-        st.error("⚠️ No Independent Contractors nearby."); return
+        st.error("⚠️ No Contractors nearby."); return
 
     ic_opts = {f"{row['Name']} ({round(row['d'], 1)} mi)": row for _, row in valid_ics.iterrows()}
     c_ic, c_rate, c_due = st.columns([2, 1, 1])
@@ -240,34 +224,30 @@ def render_dispatch_logic(i, cluster, pod_name, is_sent=False):
     col1, col2 = st.columns(2)
     with col1:
         if not real_gas_id:
-            # --- UPDATE THIS BLOCK IN tactical_master_workspace.py ---
-    if st.button("☁️ Sync Work Order", key=f"sync_btn_{i}_{pod_name}"):
-        # Define the route stops including the contractor home at start and end
-        # This ensures the Google Sheet 'locs' field is a perfect round trip
-        contractor_home = sel_ic['Location']
-        route_stops = list(loc_sum.keys())
-        full_round_trip_locs = [contractor_home] + route_stops + [contractor_home]
-        
-        payload = {
-            "icn": sel_ic['Name'],
-            "ice": sel_ic['Email'],
-            "wo": wo_title,
-            "due": due.strftime('%Y-%m-%d'),
-            "comp": pay,
-            "lCnt": stop_count,
-            "tCnt": len(cluster['data']),
-            "mi": mi,    # Already calculated as round-trip in fetch_gmaps_directions
-            "time": t_str, # Already calculated as round-trip in fetch_gmaps_directions
-            "locs": " | ".join(full_round_trip_locs), # INJECTED: Full Loop for the Portal
-            "taskIds": ",".join(cluster_task_ids),
-            "phone": str(sel_ic['Phone']),
-            "jobOnly": " | ".join([f"{a} ({loc_sum[a]} Tasks)" for a in loc_sum])
-        }
-        
-        res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
-        if res.get("success"):
-            st.session_state[sync_key] = res.get("routeId")
-            st.rerun()
+            if st.button("☁️ Sync Work Order", key=f"sync_btn_{i}_{pod_name}"):
+                contractor_home = sel_ic['Location']
+                route_stops = list(loc_sum.keys())
+                full_round_trip_locs = [contractor_home] + route_stops + [contractor_home]
+                
+                payload = {
+                    "icn": sel_ic['Name'],
+                    "ice": sel_ic['Email'],
+                    "wo": wo_title,
+                    "due": due.strftime('%Y-%m-%d'),
+                    "comp": pay,
+                    "lCnt": stop_count,
+                    "tCnt": len(cluster['data']),
+                    "mi": mi,
+                    "time": t_str,
+                    "locs": " | ".join(full_round_trip_locs),
+                    "taskIds": ",".join(cluster_task_ids),
+                    "phone": str(sel_ic['Phone']),
+                    "jobOnly": " | ".join([f"{a} ({loc_sum[a]} Tasks)" for a in loc_sum])
+                }
+                res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
+                if res.get("success"):
+                    st.session_state[sync_key] = res.get("routeId")
+                    st.rerun()
         else:
             st.button("✅ Data Synced", disabled=True, key=f"synced_{i}_{pod_name}")
 
@@ -292,29 +272,23 @@ def run_pod_tab(pod_name):
     if f"clusters_{pod_name}" not in st.session_state:
         if st.button(f"📥 Initialize {pod_name}", key=f"init_{pod_name}"): process_pod_data(pod_name); st.rerun()
         return
-    
     clusters = st.session_state[f"clusters_{pod_name}"]
     ic_df = st.session_state.ic_df
     sent_db = st.session_state.get("sent_db", set())
-    
     v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']) if ic_df is not None else pd.DataFrame()
     ready, review, sent = [], [], []
-    
     for c in clusters:
         cluster_task_ids = [str(t['id']).strip() for t in c['data']]
         already_sent_in_sheet = any(tid in sent_db for tid in cluster_task_ids)
         c_h = hashlib.md5("".join(sorted(cluster_task_ids)).encode()).hexdigest()
-        
         if f"sent_log_{c_h}" in st.session_state or already_sent_in_sheet: 
             sent.append(c)
             continue
-            
         has_ic = v_ics.apply(lambda x: haversine(c['center'][0], c['center'][1], x['Lat'], x['Lng']), axis=1).le(MAX_DEADHEAD_MILES).any() if not v_ics.empty else False
         _, hrs, _ = fetch_gmaps_directions(f"{c['center'][0]},{c['center'][1]}", tuple([d['full_addr'] for d in c['data'][:10]]))
         gate_avg = (hrs * HOURLY_FLOOR_RATE) / c['unique_count'] if c['unique_count'] > 0 else 0
         if has_ic and gate_avg <= REVIEW_PER_STOP_LIMIT: ready.append(c)
         else: review.append(c)
-
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.markdown(f"<div class='metric-box'><div class='metric-title'>Total</div><div class='metric-value'>{len(clusters)}</div></div>", unsafe_allow_html=True)
     c2.markdown(f"<div class='metric-box'><div class='metric-title' style='color:{TB_GREEN}'>Ready</div><div class='metric-value'>{len(ready)}</div></div>", unsafe_allow_html=True)
@@ -324,13 +298,11 @@ def run_pod_tab(pod_name):
         st.session_state.sent_db = load_sent_records_from_sheet(IC_SHEET_URL)
         process_pod_data(pod_name)
         st.rerun()
-
     m = folium.Map(location=clusters[0]['center'], zoom_start=6, tiles="cartodbpositron")
     for c in ready: folium.CircleMarker(c['center'], radius=10, color=TB_GREEN, fill=True, opacity=0.7).add_to(m)
     for c in sent: folium.CircleMarker(c['center'], radius=10, color=TB_BLUE, fill=True, opacity=0.7).add_to(m)
     for c in review: folium.CircleMarker(c['center'], radius=10, color="#f44336", fill=True, opacity=0.7).add_to(m)
     st_folium(m, use_container_width=True, height=450, key=f"map_{pod_name}")
-    
     t1, t2, t3 = st.tabs(["🟢 Ready", "📧 Sent", "🔴 Review"])
     with t1:
         for i, c in enumerate(ready):
@@ -345,16 +317,11 @@ def run_pod_tab(pod_name):
 def run_global_tab():
     st.markdown("## 🌎 Global Network Overview")
     if st.button("🚀 Sync Global Network"):
-        p_bar = st.progress(0, text="Initializing Network Sweep...")
-        pods = list(POD_CONFIGS.keys())
         st.session_state.sent_db = load_sent_records_from_sheet(IC_SHEET_URL)
-        for idx, pod in enumerate(pods):
-            process_pod_data(pod)
-            p_bar.progress((idx + 1) / len(pods), text=f"Synced {pod}...")
+        for pod in POD_CONFIGS.keys(): process_pod_data(pod)
         st.success("Global Sync Complete!")
         st.rerun()
 
-# --- MAIN ---
 if "ic_df" not in st.session_state: st.session_state.ic_df = load_ic_database(IC_SHEET_URL)
 if "sent_db" not in st.session_state: st.session_state.sent_db = load_sent_records_from_sheet(IC_SHEET_URL)
 
