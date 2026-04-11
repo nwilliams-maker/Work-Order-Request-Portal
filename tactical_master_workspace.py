@@ -96,6 +96,33 @@ st.markdown(f"""
         transform: translateY(-2px) !important;
         box-shadow: 0 6px 10px rgba(0,0,0,0.15) !important;
     }}
+
+    /* EMBEDDED SYNC ICON HACK */
+    div.element-container:has(button[key^="sync_track_"]),
+    div[data-testid="stButton"]:has(button[key^="sync_track_"]) {{
+        position: absolute;
+        top: 8px;
+        right: 15px;
+        width: auto !important;
+        z-index: 10;
+    }}
+    
+    button[key^="sync_track_"] {{
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        font-size: 16px !important;
+        width: 24px !important;
+        height: 24px !important;
+        color: #475569 !important;
+        transition: transform 0.4s ease !important;
+    }}
+    
+    button[key^="sync_track_"]:hover {{
+        transform: rotate(180deg) !important; /* Cool spin effect on hover */
+        filter: brightness(0.5) !important;
+    }}
     
     /* NESTED SUB-TABS OVERRIDE (Pipeline & Portal Results) */
     div[data-testid="stTabs"] div[data-testid="stTabs"] [data-baseweb="tab"]:nth-of-type(1) {{ background-color: {TB_GREEN_FILL} !important; color: #000000 !important; }} /* Ready */
@@ -646,8 +673,14 @@ def run_pod_tab(pod_name):
         """, unsafe_allow_html=True)
 
     with c3:
+        # 1. The Invisible/Floating Sync Button
+        if st.button("🔄", key=f"sync_track_{pod_name}", help="Force Sync Portal Accept/Declines"):
+            fetch_sent_records_from_sheet.clear()
+            st.rerun()
+
+        # 2. The Card Background (Position set to relative so the button floats perfectly inside)
         st.markdown(f"""
-            <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:20px; height: 110px;'>
+            <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:20px; height: 110px; position:relative;'>
                 <p style='margin:0 0 5px 0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase; text-align:center;'>Dispatched Tracking: {total_dispatched}</p>
                 <div style='display:flex; justify-content:space-between; gap:8px;'>
                     <div style='background:{TB_GREEN_FILL}; flex:1; padding:8px; border-radius:8px; text-align:center;'>
@@ -661,7 +694,7 @@ def run_pod_tab(pod_name):
                 </div>
             </div>
         """, unsafe_allow_html=True)
-
+        
     # MAP REMAINS UNTOUCHED
     m = folium.Map(location=cls[0]['center'], zoom_start=6, tiles="cartodbpositron")
     for c in ready: folium.CircleMarker(c['center'], radius=10, color=TB_GREEN, fill=True, opacity=0.8).add_to(m)
@@ -670,14 +703,6 @@ def run_pod_tab(pod_name):
     st_folium(m, width=1100, height=400, key=f"map_{pod_name}")
     
     st.markdown("---")
-    
-    # --- NEW: MANUAL SYNC BUTTON FOR PORTAL UPDATES ---
-    sync_col1, sync_col2 = st.columns([8, 2])
-    with sync_col2:
-        # This button explicitly clears the 15-second cache and forces a fresh read
-        if st.button("🔄 Sync Portal Status", use_container_width=True, key=f"force_sync_{pod_name}"):
-            fetch_sent_records_from_sheet.clear() 
-            st.rerun()
 
     # TABS REMAIN UNTOUCHED
     t1, t2, t3, gap, t4, t5, end_gap = st.tabs([
