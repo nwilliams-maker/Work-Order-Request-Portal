@@ -79,6 +79,13 @@ st.markdown(f"""
     .stTabs [data-baseweb="tab"]:nth-of-type(6) {{ background-color: #fee2e2 !important; color: #000000 !important; }}
     .stTabs [aria-selected="true"] {{ transform: scale(1.05); border: 2px solid {TB_PURPLE} !important; z-index: 1; }}
 
+    /* NESTED SUB-TABS OVERRIDE (Pipeline & Portal Results) */
+    div[data-testid="stTabs"] div[data-testid="stTabs"] [data-baseweb="tab"]:nth-of-type(1) {{ background-color: {TB_GREEN_FILL} !important; color: #000000 !important; }} /* Ready */
+    div[data-testid="stTabs"] div[data-testid="stTabs"] [data-baseweb="tab"]:nth-of-type(2) {{ background-color: {TB_BLUE_FILL} !important; color: #000000 !important; }} /* Sent */
+    div[data-testid="stTabs"] div[data-testid="stTabs"] [data-baseweb="tab"]:nth-of-type(3) {{ background-color: {TB_RED_FILL} !important; color: #000000 !important; }} /* Flagged */
+    div[data-testid="stTabs"] div[data-testid="stTabs"] [data-baseweb="tab"]:nth-of-type(5) {{ background-color: {TB_GREEN_FILL} !important; color: #000000 !important; }} /* Accepted */
+    div[data-testid="stTabs"] div[data-testid="stTabs"] [data-baseweb="tab"]:nth-of-type(6) {{ background-color: {TB_RED_FILL} !important; color: #000000 !important; }} /* Declined */
+
     /* FORCE EXPANDER CARDS PURE WHITE */
     div[data-testid="stExpander"],
     div[data-testid="stExpander"] > details,
@@ -119,9 +126,11 @@ def normalize_state(st_str):
     clean = str(st_str).strip().upper()
     return STATE_MAP.get(clean, clean)
 
+@st.cache_data(ttl=15, show_spinner=False)
 def fetch_sent_records_from_sheet():
     try:
         base_url = f"{IC_SHEET_URL.split('/edit')[0]}/export?format=csv&gid="
+# ... (leave the rest of the function exactly as it is)
         
         # Priority: Declined, Accepted, then Saved (Saved overwrites if active again)
         sheets_to_fetch = [
@@ -499,7 +508,9 @@ def run_pod_tab(pod_name):
             process_pod(pod_name); st.rerun()
         return
     
-    sent_db = st.session_state.get("sent_db", {})
+    # 1. NEW AUTO-SYNC: Fetch the DB silently in the background
+    sent_db = fetch_sent_records_from_sheet()
+    
     ready, review, sent, accepted, declined = [], [], [], [], []
     
     for c in cls:
@@ -515,7 +526,6 @@ def run_pod_tab(pod_name):
             sheet_time = sheet_match.get('time', '') if sheet_match else ""
             c['route_ts'] = sheet_time if sheet_time else local_ts
             
-            # Local override catches fresh reroutes instantly
             current_status = st.session_state.get(f"status_override_{cluster_hash}")
             if not current_status:
                 current_status = sheet_match.get('status', 'sent') if sheet_match else "sent"
@@ -527,33 +537,28 @@ def run_pod_tab(pod_name):
             if c.get('status') == "Ready": ready.append(c)
             else: review.append(c)
     
-    c1, c2, c3, c4, c5, c6 = st.columns([1,1,1,1,1, 1.2])
+    # 2. METRIC CARDS: Perfectly balanced 6-column layout
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
     total_tasks = sum(len(c['data']) for c in cls)
-    total_stops = sum(c['stops'] for c in cls)
     
-    for col, title, val in zip([c1, c2, c3, c4, c5], ["Total Tasks", "Total Stops", "Ready", "Sent", "Flagged"], [total_tasks, total_stops, len(ready), len(sent), len(review)]):
-        if title in ["Total Tasks", "Total Stops"]: bg_color = "#f8fafc"
-        elif title == "Ready": bg_color = TB_GREEN_FILL
+    # We removed the manual Sync button and replaced it with a clean metric loop
+    for col, title, val in zip([c1, c2, c3, c4, c5, c6], 
+                               ["Total Tasks", "Ready", "Sent", "Flagged", "Accepted", "Declined"], 
+                               [total_tasks, len(ready), len(sent), len(review), len(accepted), len(declined)]):
+                               
+        if title == "Total Tasks": bg_color = "#f8fafc"
+        elif title in ["Ready", "Accepted"]: bg_color = TB_GREEN_FILL
         elif title == "Sent": bg_color = TB_BLUE_FILL
         else: bg_color = TB_RED_FILL
         
         col.markdown(f"""
-            <div style='background:{bg_color}; border:1px solid #cbd5e1; border-radius:12px; padding:15px; text-align:center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);'>
+            <div style='background:{bg_color}; border:1px solid #cbd5e1; border-radius:12px; padding:15px; text-align:center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;'>
                 <p style='margin:0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>{title}</p>
                 <p style='margin:0; font-size:26px; font-weight:800; color:#000000;'>{val}</p>
             </div>
         """, unsafe_allow_html=True)
-    
-    with c6:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔄 Sync Sent Routes", use_container_width=True, key=f"sync_sheet_{pod_name}"):
-            bar = st.progress(0, text="🔄 Fetching database records...")
-            st.session_state.sent_db = fetch_sent_records_from_sheet()
-            bar.progress(100, text="✅ Database Synced!")
-            time.sleep(0.5)
-            bar.empty()
-            st.rerun()
 
+    # MAP & EXPANDERS (Untouched)
     m = folium.Map(location=cls[0]['center'], zoom_start=6, tiles="cartodbpositron")
     for c in ready: folium.CircleMarker(c['center'], radius=10, color=TB_GREEN, fill=True, opacity=0.8).add_to(m)
     for c in sent: folium.CircleMarker(c['center'], radius=10, color="#3b82f6", fill=True, opacity=0.8).add_to(m)
