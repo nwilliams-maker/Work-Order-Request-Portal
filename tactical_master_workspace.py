@@ -667,7 +667,7 @@ def run_pod_tab(pod_name):
     with c3:
         # 1. The Supercard Background
         st.markdown(f"""
-            <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:0px; height: 110px;'>
+            <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:20px; height: 110px; position:relative;'>
                 <p style='margin:0 0 5px 0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase; text-align:center;'>Dispatched Tracking: {total_dispatched}</p>
                 <div style='display:flex; justify-content:space-between; gap:8px;'>
                     <div style='background:{TB_GREEN_FILL}; flex:1; padding:8px; border-radius:8px; text-align:center;'>
@@ -682,48 +682,49 @@ def run_pod_tab(pod_name):
             </div>
         """, unsafe_allow_html=True)
         
-        # 2. The Button itself
-        if st.button("🔄", key=f"sync_track_{pod_name}", help="Force Sync Portal Accept/Declines"):
+        # 2. The Button (Swapped to a text-symbol ↻ so it doesn't render blue)
+        if st.button("↻", key=f"sync_track_{pod_name}"):
             fetch_sent_records_from_sheet.clear()
             st.rerun()
 
-        # 3. The Aggressive CSS to kill the background and pull it into the card
+        # 3. The Ironclad CSS to strip the button and float it
         st.markdown("""
             <style>
-            /* Pull the wrapper UP and RIGHT */
-            div.stButton:has(button[title="Force Sync Portal Accept/Declines"]) {
-                margin-top: -110px !important;  
-                margin-left: auto !important;   
-                margin-right: 5px !important;   
-                width: fit-content !important;  
-                position: relative !important;
+            /* 1. Target the 3rd column specifically and absolute-position the button container to the top right */
+            div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) div[data-testid="stButton"] {
+                position: absolute !important;
+                top: 5px !important;
+                right: 15px !important;
                 z-index: 99 !important;
+                width: auto !important;
             }
             
-            /* Strip ALL backgrounds, borders, and shadows from the button */
-            button[title="Force Sync Portal Accept/Declines"] {
+            /* 2. Nuke ALL heavy styling on the button itself so it becomes a clean icon */
+            div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) div[data-testid="stButton"] button {
                 background-color: transparent !important;
                 background: transparent !important;
                 border: none !important;
                 box-shadow: none !important;
-                font-size: 16px !important;
-                width: 30px !important;
-                height: 30px !important;
+                color: #94a3b8 !important; /* Cool Grey */
                 padding: 0 !important;
-                color: #94a3b8 !important;
-                transition: transform 0.4s ease !important;
+                min-height: 0 !important;
+                height: 30px !important;
+                width: 30px !important;
+                font-size: 22px !important;
+                line-height: 1 !important;
+                transition: all 0.3s ease !important;
             }
             
-            /* Prevent the gray box from flashing when hovering or clicking */
-            button[title="Force Sync Portal Accept/Declines"]:hover,
-            button[title="Force Sync Portal Accept/Declines"]:focus,
-            button[title="Force Sync Portal Accept/Declines"]:active {
-                background-color: transparent !important;
-                background: transparent !important;
-                border: none !important;
-                box-shadow: none !important;
+            /* 3. Spin and darken when hovered, kill the gray focus box */
+            div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) div[data-testid="stButton"] button:hover,
+            div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) div[data-testid="stButton"] button:focus,
+            div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) div[data-testid="stButton"] button:active {
                 color: #000000 !important;
                 transform: rotate(180deg) !important;
+                background-color: transparent !important;
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
             }
             </style>
         """, unsafe_allow_html=True)
