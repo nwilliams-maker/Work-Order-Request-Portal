@@ -416,51 +416,71 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         
     st.divider()
 
-    # --- 2. EXPANDED CONTRACTOR SEARCH (100 MILES) ---
+    # --- 2. CONTRACTOR SEARCH ---
     ic_df = st.session_state.get('ic_df', pd.DataFrame())
     v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy()
 
     if not v_ics.empty:
         v_ics['d'] = v_ics.apply(lambda x: haversine(cluster['center'][0], cluster['center'][1], x['Lat'], x['Lng']), axis=1)
-        v_ics = v_ics[v_ics['d'] <= 100].sort_values('d').head(5) # SECOND BAND: UP TO 100 MILES
+        v_ics = v_ics[v_ics['d'] <= 100].sort_values('d').head(5)
 
     if v_ics.empty:
-        st.error("⚠️ No contractors found within 100 miles. Manual recruiting required.")
+        st.error("⚠️ No contractors found within 100 miles.")
         return
 
     ic_opts = {f"{r['Name']} ({round(r['d'],1)} mi)": r for _, r in v_ics.iterrows()}
     
-    # --- 3. INPUT ROW & LOCK LOGIC ---
-    col_a, col_b, col_c, col_d = st.columns([1.5, 1, 1, 1])
-    
-    with col_a:
-        sel_label = st.selectbox("Contractor", list(ic_opts.keys()), key=f"sel_{cluster_hash}")
-    
-    ic = ic_opts[sel_label]
-    mi, hrs, t_str = get_gmaps(ic['Location'], list(stop_metrics.keys())[:25])
-
-    # TRIGGER THE LOCK: If Flagged status OR distance is in the 60-100mi band
-    needs_unlock = (cluster['status'] == 'Flagged') or (ic['d'] > 60)
-    is_unlocked = True # Default for clean routes
-    
-    if needs_unlock:
-        st.markdown(f"""
-            <div style="background-color: #fef2f2; border: 1px solid #ef4444; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-                <span style="color: #b91c1c; font-weight: 800;">🔒 PRICE LOCKED:</span> 
-                <span style="color: #7f1d1d;">{'Extended Distance ('+str(round(ic['d'],1))+'mi)' if ic['d'] > 60 else 'High Avg Cost Route'}</span>
-            </div>
-        """, unsafe_allow_html=True)
-        is_unlocked = st.checkbox("Authorize Extended Rate & Distance", key=f"lock_{cluster_hash}")
-
+    # --- 3. DYNAMIC COMPENSATION PRE-CALC ---
     pay_key = f"pay_val_{cluster_hash}"
     rate_key = f"rate_val_{cluster_hash}"
+
+    ic = ic_opts[list(ic_opts.keys())[0]] # Temporary for initialization
+    mi, hrs, t_str = get_gmaps(ic['Location'], list(stop_metrics.keys())[:25])
 
     def update_rate(): st.session_state[rate_key] = round(st.session_state[pay_key] / cluster['stops'], 2)
     def update_pay(): st.session_state[pay_key] = round(st.session_state[rate_key] * cluster['stops'], 2)
 
     if pay_key not in st.session_state:
         initial_pay = float(round(max(cluster['stops'] * 18.0, hrs * 25.0), 2))
-        st.session_state[pay_key], st.session_state[rate_key] = initial_pay, float(round(initial_pay / cluster['stops'], 2))
+        st.session_state[pay_key] = initial_pay
+        st.session_state[rate_key] = float(round(initial_pay / cluster['stops'], 2))
+
+    # --- 4. THE LOCK LOGIC (3-WAY CHECK) ---
+    current_rate = st.session_state.get(rate_key, 0)
+    
+    # Check 1: Is it Flagged? | Check 2: Distance > 60mi | Check 3: Rate >= $25
+    is_high_rate = current_rate >= 25.0
+    is_long_dist = ic['d'] > 60
+    is_flagged = cluster['status'] == 'Flagged'
+    
+    needs_unlock = is_high_rate or is_long_dist or is_flagged
+    is_unlocked = True # Default for clean routes
+    
+    if needs_unlock:
+        reasons = []
+        if is_high_rate: reasons.append(f"High Rate (${current_rate}/stop)")
+        if is_long_dist: reasons.append(f"Extended Distance ({round(ic['d'],1)}mi)")
+        if is_flagged: reasons.append("Flagged Route")
+        
+        reason_text = " & ".join(reasons)
+        
+        st.markdown(f"""
+            <div style="background-color: #fef2f2; border: 1px solid #ef4444; padding: 12px; border-radius: 10px; margin-bottom: 15px;">
+                <span style="color: #b91c1c; font-weight: 800; font-size: 14px;">🔒 ACTION REQUIRED:</span><br>
+                <span style="color: #7f1d1d; font-size: 13px;">Reviewing: <b>{reason_text}</b></span>
+            </div>
+        """, unsafe_allow_html=True)
+        is_unlocked = st.checkbox("Authorize Premium Rate / Distance", key=f"lock_{cluster_hash}")
+
+    # --- 5. INPUT ROW ---
+    col_a, col_b, col_c, col_d = st.columns([1.5, 1, 1, 1])
+    
+    with col_a:
+        sel_label = st.selectbox("Contractor", list(ic_opts.keys()), key=f"sel_{cluster_hash}")
+    
+    # Re-calc logistics based on actual selection
+    ic = ic_opts[sel_label]
+    mi, hrs, t_str = get_gmaps(ic['Location'], list(stop_metrics.keys())[:25])
 
     with col_b:
         pay = st.number_input("Total Comp ($)", min_value=0.0, step=5.0, key=pay_key, on_change=update_rate, disabled=not is_unlocked)
@@ -469,7 +489,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
     with col_d:
         due = st.date_input("Deadline", datetime.now().date()+timedelta(14), key=f"dd_{cluster_hash}", disabled=not is_unlocked)
 
-    # --- 4. FINANCIALS & LOGISTICS ---
+    # --- 6. FINANCIALS & LOGISTICS ---
     m1, m2 = st.columns(2)
     with m1: 
         status_color = TB_GREEN if 18.0 <= eff_stop <= 23.0 else "#ef4444"
@@ -477,7 +497,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
     with m2: 
         st.markdown(f"<div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:15px; margin-bottom:10px;'><p style='font-size:11px; font-weight:800; text-transform:uppercase;'>Logistics</p><p style='margin:0; font-size:24px; font-weight:800; color:#000000;'>{t_str}</p><p style='margin:0; font-size:13px; color:#000000;'>Round Trip: {mi} mi</p></div>", unsafe_allow_html=True)
 
-    # --- 5. PREVIEW & GMAIL (UNDIMS ONLY IF UNLOCKED) ---
+    # --- 7. PREVIEW & GMAIL ---
     wo_val = f"{ic['Name']} - {datetime.now().strftime('%m%d%Y')}"
     sig_preview = (f"Work Order: {wo_val}\nContractor: {ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
            f"Metrics:\n- Stops: {cluster['stops']}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
@@ -487,7 +507,6 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
 
     btn_label = "🚀 GENERATE LINK & OPEN GMAIL" if (not real_id or is_declined) else "🚀 OPEN IN GMAIL (RESEND)"
     
-    # BUTTON UNDIMS (ENABLED) ONLY IF IS_UNLOCKED IS TRUE
     if st.button(btn_label, type="primary", key=f"gbtn_{cluster_hash}", disabled=not is_unlocked):
         final_route_id = real_id
         with st.spinner("Generating..."):
