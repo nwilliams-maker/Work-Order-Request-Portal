@@ -525,11 +525,11 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         
         # --- STEP E: THE 20-SECOND VISUAL COUNTDOWN ---
         timer_placeholder = st.empty()
-        for sec in range(20, 0, -1):
+        for sec in range(10, 0, -1):
             timer_placeholder.success(f"✅ Link Generated & Gmail Opened! Moving card to 'Sent' in {sec} seconds...")
             time.sleep(1) # Wait exactly 1 second per loop
             
-        # Once the 20 seconds are up, refresh the app to officially move the card
+        # Once the 10 seconds are up, refresh the app to officially move the card
         st.rerun()
                 
 def run_pod_tab(pod_name):
