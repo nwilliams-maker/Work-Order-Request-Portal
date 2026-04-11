@@ -419,7 +419,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
             loc_data[addr]['install'] += 1
         elif any(x in tt for x in ["kiosk removal", "cvs kiosk removal"]): 
             loc_data[addr]['removal'] += 1
-        elif any(x in tt for x in ["digital service", "digital ins/remove"]): 
+        elif any(x in tt for x in ["digital service", "digital ins/remove", "service kiosk"]): 
             loc_data[addr]['digital'] += 1
         else:
             loc_data[addr]['other'] += 1
