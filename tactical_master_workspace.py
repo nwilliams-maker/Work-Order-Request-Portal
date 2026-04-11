@@ -132,7 +132,7 @@ st.markdown(f"""
     
     div[data-testid="stMetricValue"] > div {{ color: #000000 !important; }}
     </style>
-""", unsafe_allow_html=True)
+""" unsafe_allow_html=True)
 
 # --- UTILITIES ---
 def haversine(lat1, lon1, lat2, lon2):
