@@ -402,7 +402,8 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
     for c in cluster['data']:
         addr = c['full']
         if addr not in loc_data:
-            loc_data[addr] = {'total': 0, 'new': 0, 'cont': 0, 'def': 0, 'other': 0}
+            # Added 'install' to the counter dictionary
+            loc_data[addr] = {'total': 0, 'new': 0, 'cont': 0, 'def': 0, 'install': 0, 'other': 0}
         
         loc_data[addr]['total'] += 1
         tt = str(c.get('task_type', '')).strip().lower()
@@ -414,10 +415,11 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
             loc_data[addr]['cont'] += 1
         elif any(x in tt for x in ["default", "store default", "default ad"]):
             loc_data[addr]['def'] += 1
+        elif any(x in tt for x in ["kiosk install", "install"]): # <--- NEW INSTALL BUCKET
+            loc_data[addr]['install'] += 1
         else:
             loc_data[addr]['other'] += 1
 
-    # Render the perfectly formatted Pills!
     # Render the perfectly formatted Pills!
     loc_pills = {} 
     for addr, counts in loc_data.items():
@@ -425,6 +427,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
         if counts['new'] > 0: pill_parts.append(f"🆕 {counts['new']} New Ad")
         if counts['cont'] > 0: pill_parts.append(f"🔄 {counts['cont']} Continuity")
         if counts['def'] > 0: pill_parts.append(f"⚪ {counts['def']} Default")
+        if counts['install'] > 0: pill_parts.append(f"🛠️ {counts['install']} Install") # <--- NEW INSTALL PILL
         if counts['other'] > 0: pill_parts.append(f"📦 {counts['other']} Other")
         
         # Build the clean string without brackets for the Google Sheet payload
