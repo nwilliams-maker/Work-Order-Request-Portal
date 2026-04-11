@@ -395,6 +395,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
 
     st.write("### 📍 Route Stops")
 
+    # --- 1. STOP METRICS CALCULATION ---
     stop_metrics = {}
     for c in cluster['data']:
         addr = c['full']
@@ -435,6 +436,8 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         st.markdown(f"**{addr}** &nbsp;<span style='color: #633094; background-color: #f3e8ff; padding: 2px 6px; border-radius: 10px; font-weight: 800; font-size: 11px;'>{metrics['t_count']} Tasks</span>&nbsp; <span style='font-size: 13px; color: #475569;'>— {pill_str}</span>", unsafe_allow_html=True)
         
     st.divider()
+
+    # --- 2. CONTRACTOR SELECTION ---
     ic_df = st.session_state.get('ic_df', pd.DataFrame())
     v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy()
 
@@ -447,8 +450,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         return
 
     ic_opts = {f"{r['Name']} ({round(r['d'],1)} mi)": r for _, r in v_ics.iterrows()}
-    col_a, col_b, col_c = st.columns([2,1,1])
-
+    
     default_idx = 0
     if is_sent and 'contractor_name' in cluster:
         for idx, key in enumerate(ic_opts.keys()):
@@ -456,51 +458,30 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
                 default_idx = idx
                 break
 
-    sel_label = col_a.selectbox("Contractor", list(ic_opts.keys()), index=default_idx, key=f"sel_{pod_name}_{i}_{cluster_hash}")
-    rate = col_b.number_input("Rate/Stop", 16.0, 150.0, 18.0, step=1.0, key=f"rt_{pod_name}_{i}_{cluster_hash}")
-    due = col_c.date_input("Deadline", datetime.now().date()+timedelta(14), key=f"dd_{pod_name}_{i}_{cluster_hash}")
-
-    # --- 1. LOGISTICS CALCULATION ---
-    ic = ic_opts[sel_label]
-    mi, hrs, t_str = get_gmaps(ic['Location'], list(stop_metrics.keys())[:25])
-    
-    # Define unique keys for this specific cluster to avoid cross-talk
+    # --- 3. DYNAMIC COMPENSATION LOGIC (BI-DIRECTIONAL) ---
     pay_key = f"pay_val_{cluster_hash}"
     rate_key = f"rate_val_{cluster_hash}"
 
-    # --- 2. DYNAMIC SYNC CALLBACKS ---
-    def update_rate():
-        # When Total is changed, update the Rate
-        st.session_state[rate_key] = round(st.session_state[pay_key] / cluster['stops'], 2)
-
-    def update_pay():
-        # When Rate is changed, update the Total
-        st.session_state[pay_key] = round(st.session_state[rate_key] * cluster['stops'], 2)
-
-    # Initialize values if they don't exist yet
-    if pay_key not in st.session_state:
-        # Your original logic for the starting "floor" price
-        initial_pay = round(max(cluster['stops'] * 18.0, hrs * 25.0), 2)
-        st.session_state[pay_key] = float(initial_pay)
-        st.session_state[rate_key] = float(round(initial_pay / cluster['stops'], 2))
-
-    # --- 1. DEFINE DYNAMIC KEYS & CALLBACKS ---
-    pay_key = f"pay_{cluster_hash}"
-    rate_key = f"rate_{cluster_hash}"
+    # Logistics calculation needed for initial "floor" logic
+    ic_temp = list(ic_opts.values())[default_idx]
+    mi, hrs, t_str = get_gmaps(ic_temp['Location'], list(stop_metrics.keys())[:25])
 
     def update_rate():
-        st.session_state[rate_key] = round(st.session_state[pay_key] / cluster['stops'], 2)
+        # Triggers when Total is edited
+        if cluster['stops'] > 0:
+            st.session_state[rate_key] = round(st.session_state[pay_key] / cluster['stops'], 2)
 
     def update_pay():
+        # Triggers when Rate/Stop is edited
         st.session_state[pay_key] = round(st.session_state[rate_key] * cluster['stops'], 2)
 
-    # Initialize memory if empty
+    # Initialize memory if not set
     if pay_key not in st.session_state:
-        initial_pay = round(max(cluster['stops'] * 18.0, hrs * 25.0), 2)
-        st.session_state[pay_key] = float(initial_pay)
+        initial_pay = float(round(max(cluster['stops'] * 18.0, hrs * 25.0), 2))
+        st.session_state[pay_key] = initial_pay
         st.session_state[rate_key] = float(round(initial_pay / cluster['stops'], 2))
 
-    # --- 2. UNIFIED INPUT ROW ---
+    # --- 4. INPUT ROW ---
     col_a, col_b, col_c, col_d = st.columns([1.5, 1, 1, 1])
     
     with col_a:
@@ -512,7 +493,9 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
     with col_d:
         due = st.date_input("Deadline", datetime.now().date()+timedelta(14), key=f"dd_{cluster_hash}")
 
-    # --- 3. DYNAMIC FINANCIALS & LOGISTICS ---
+    ic = ic_opts[sel_label]
+
+    # --- 5. FINANCIALS & LOGISTICS SUPERCARDS ---
     m1, m2 = st.columns(2)
     with m1: 
         status_color = TB_GREEN if 18.0 <= eff_stop <= 23.0 else "#ef4444"
@@ -533,7 +516,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
             </div>
         """, unsafe_allow_html=True)
 
-    # --- 5. PREVIEW & BUTTONS (Use the dynamic 'pay' and 'eff_stop') ---
+    # --- 6. PREVIEW & GMAIL BUTTON ---
     wo_val = f"{ic['Name']} - {datetime.now().strftime('%m%d%Y')}"
 
     sig_preview = (f"Work Order: {wo_val}\nContractor: {ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
@@ -564,14 +547,21 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
                 else:
                     st.error("Failed to generate link."); st.stop()
 
-        # Re-build final signature with the dynamic 'pay'
+        # Re-build final signature with current dynamic 'pay'
         final_sig = (f"Work Order: {wo_val}\nContractor: {ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
                f"Metrics:\n- Stops: {cluster['stops']}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
                f"Authorize here:\n{PORTAL_BASE_URL}?route={final_route_id}&v2=true")
         
         gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={ic['Email']}&su=Route Request: {ic['Name']}&body={requests.utils.quote(final_sig)}"
         
+        # Open Gmail in new tab
         st.components.v1.html(f"<script>window.open('{gmail_url}', '_blank');</script>", height=0)
+        
+        # Status State Updates
+        now_ts = datetime.now().strftime('%m/%d %I:%M %p')
+        st.session_state[f"sent_ts_{cluster_hash}"] = now_ts
+        st.session_state[f"contractor_{cluster_hash}"] = ic['Name']
+        st.session_state[f"route_state_{cluster_hash}"] = "email_sent"
         
         timer_placeholder = st.empty()
         for sec in range(10, 0, -1):
