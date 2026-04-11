@@ -565,15 +565,31 @@ def run_pod_tab(pod_name):
     for c in ready: folium.CircleMarker(c['center'], radius=8, color=TB_GREEN, fill=True).add_to(m)
     st_folium(m, height=400, use_container_width=True, key=f"map_{pod_name}")
 
+    # --- ICON KEY (LEGEND) WITH HOVER DEFINITIONS ---
     st.markdown("""
-        <div style="display: flex; justify-content: center; gap: 20px; background: #ffffff; padding: 10px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: -10px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; align-self: center; margin-right: 10px;">Route Key:</div>
-            <div style="font-size: 13px; cursor: help;" title="Standard route">📍 Ready</div>
-            <div style="font-size: 13px; cursor: help;" title="Requires authorization">🔒 Action Required</div>
-            <div style="font-size: 13px; cursor: help;" title="Rate >= $25/stop">💰 High Rate</div>
-            <div style="font-size: 13px; cursor: help;" title="Distance > 60mi">📡 Long Distance</div>
-            <div style="font-size: 13px; cursor: help;" title="System flagged">🔴 Flagged</div>
-            <div style="font-size: 13px; cursor: help;" title="Sent to IC">✉️ Sent</div>
+        <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; background: #ffffff; padding: 12px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: -15px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; align-self: center; margin-right: 5px;">Route Key:</div>
+            
+            <div style="font-size: 13px; cursor: help; display: flex; align-items: center; gap: 5px;" 
+                 title="Standard: Route is within distance limits (<60mi) and standard rate (<$25/stop).">📍 <span>Ready</span></div>
+            
+            <div style="font-size: 13px; cursor: help; display: flex; align-items: center; gap: 5px;" 
+                 title="Locked: Requires manual dispatcher authorization before the email button unlocks.">🔒 <span>Action Required</span></div>
+            
+            <div style="font-size: 13px; cursor: help; display: flex; align-items: center; gap: 5px;" 
+                 title="Cost Alert: The calculated price per stop is $25.00 or higher.">💰 <span>High Rate</span></div>
+            
+            <div style="font-size: 13px; cursor: help; display: flex; align-items: center; gap: 5px;" 
+                 title="Travel Alert: The closest contractor is located more than 60 miles from the route center.">📡 <span>Long Distance</span></div>
+            
+            <div style="font-size: 13px; cursor: help; display: flex; align-items: center; gap: 5px;" 
+                 title="System Flag: This route was flagged for review (e.g., low density or scattered stops).">🔴 <span>Flagged</span></div>
+            
+            <div style="font-size: 13px; cursor: help; display: flex; align-items: center; gap: 5px;" 
+                 title="Priority: This route contains tasks marked with high priority stars.">⭐ <span>Escalated</span></div>
+            
+            <div style="font-size: 13px; cursor: help; display: flex; align-items: center; gap: 5px;" 
+                 title="Dispatched: The route request has been generated and sent to the contractor.">✉️ <span>Sent</span></div>
         </div>
     """, unsafe_allow_html=True)
 
