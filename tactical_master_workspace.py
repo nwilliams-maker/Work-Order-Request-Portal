@@ -243,23 +243,32 @@ def process_pod(pod_name):
             c_type = str(container.get('type', '')).upper()
             
             # ---> 3. NEW FILTER: Keep completely unassigned tasks, but filter specific teams <---
-            # If it is assigned to a team, but NOT one of our approved teams, skip it entirely.
             if c_type == 'TEAM' and container.get('team') not in target_team_ids:
                 continue
 
             addr = t.get('destination', {}).get('address', {})
             stt = normalize_state(addr.get('state', ''))
             
-            # Tag for the Star Pill (Only true if it is in a team AND that team is the Escalation team)
+            # Tag for the Star Pill (Team Check)
             is_esc = (c_type == 'TEAM' and container.get('team') in esc_team_ids)
             
-            # ---> NEW: Extract Task Type from Metadata <---
+            # Tag for the Star Pill (Metadata Fallback Check)
+            if not is_esc:
+                for m in (t.get('metadata') or []):
+                    if 'escalation' in str(m.get('name', '')).lower() and str(m.get('value', '')).strip() in ['1', '1.0', 'true', 'yes']:
+                        is_esc = True
+                        break
+            
+            # ---> NEW: Extract Task Type from Metadata OR Notes <---
             tt_val = ""
             for m in (t.get('metadata') or []):
-                m_name = str(m.get('name', '')).lower().strip()
-                if 'tasktype' in m_name or 'task type' in m_name:
+                if 'tasktype' in str(m.get('name', '')).lower() or 'task type' in str(m.get('name', '')).lower():
                     tt_val = str(m.get('value', '')).strip()
                     break
+            
+            # Fallback: if it wasn't mapped strictly to metadata, check the task notes
+            if not tt_val:
+                tt_val = str(t.get('taskDetails', '')).strip()
             
             if stt in config['states']:
                 pool.append({
@@ -267,7 +276,7 @@ def process_pod(pod_name):
                     "full": f"{addr.get('number','')} {addr.get('street','')}, {addr.get('city','')}, {stt}",
                     "lat": t['destination']['location'][1], "lon": t['destination']['location'][0],
                     "escalated": is_esc,
-                    "task_type": tt_val # <--- Attached for the pills!
+                    "task_type": tt_val
                 })
         
         clusters = []
@@ -362,7 +371,8 @@ def process_pod(pod_name):
         progress_bar.empty()
         st.error(f"Error initializing {pod_name}: {str(e)}")
 
-def render_dispatch(cluster, pod_name, is_sent=False):
+# Added the 'i' index back into the function to prevent Streamlit widget crashes
+def render_dispatch(i, cluster, pod_name, is_sent=False):
     task_ids = [str(t['id']).strip() for t in cluster['data']]
     cluster_hash = hashlib.md5("".join(sorted(task_ids)).encode()).hexdigest()
     sync_key = f"sync_{cluster_hash}"
@@ -371,7 +381,6 @@ def render_dispatch(cluster, pod_name, is_sent=False):
     
     st.write("### 📍 Route Stops")
     
-    # ---> NEW: Count specific task types per location <---
     loc_data = {}
     for c in cluster['data']:
         addr = c['full']
@@ -381,25 +390,33 @@ def render_dispatch(cluster, pod_name, is_sent=False):
         loc_data[addr]['total'] += 1
         tt = str(c.get('task_type', '')).strip().lower()
         
-        # Categorize using SUBSTRING matching to catch combined tags like "Escalation, New Ad"
+        # Categorize using IF/ELIF priority matching to completely prevent double-counting
         if any(x in tt for x in ["new ad", "digital ad with bottom", "digital ad with magnet", "art change"]):
             loc_data[addr]['new'] += 1
-        if any(x in tt for x in ["continuity", "ad takedown", "move kiosk", "photo retake", "pull down", "swap magnets", "reorder", "fix", "digital photo", "photo"]):
+        elif any(x in tt for x in ["continuity", "ad takedown", "move kiosk", "photo retake", "pull down", "swap magnets", "reorder", "fix", "digital photo", "photo"]):
             loc_data[addr]['cont'] += 1
-        if any(x in tt for x in ["default", "store default", "default ad"]):
+        elif any(x in tt for x in ["default", "store default", "default ad"]):
             loc_data[addr]['def'] += 1
 
     # Render the new Pills!
-    loc_pills = {} # Saves the formatted string for the Google Sheet payload later
+    loc_pills = {} # Saves the cleanly formatted string for the Google Sheet payload
     for addr, counts in loc_data.items():
         pill_parts = []
         if counts['new'] > 0: pill_parts.append(f"🆕 {counts['new']} New")
         if counts['cont'] > 0: pill_parts.append(f"🔄 {counts['cont']} Cont")
         if counts['def'] > 0: pill_parts.append(f"⚪ {counts['def']} Def")
         
-        # Build the pill, or fallback to standard count if task type was totally blank/unknown
-        pill_str = f"[ {' | '.join(pill_parts)} ]" if pill_parts else f"[ {counts['total']} Tasks ]"
+        # Ensure any unknown tasks are still accounted for mathematically in the pill
+        categorized_total = counts['new'] + counts['cont'] + counts['def']
+        if counts['total'] > categorized_total:
+            other_cnt = counts['total'] - categorized_total
+            pill_parts.append(f"📦 {other_cnt} Other")
+            
+        # The backticks are removed from pill_str so they don't break the Google Sheet payload
+        pill_str = f"[ {' | '.join(pill_parts)} ]"
         loc_pills[addr] = pill_str
+        
+        # We only apply the markdown backticks visually in the app
         st.markdown(f"**{addr}** `{pill_str}`")
         
     st.divider()
@@ -424,9 +441,9 @@ def render_dispatch(cluster, pod_name, is_sent=False):
                 default_idx = idx
                 break
 
-    sel_label = col_a.selectbox("Contractor", list(ic_opts.keys()), index=default_idx, key=f"sel_{cluster_hash}")
-    rate = col_b.number_input("Rate/Stop", 16.0, 150.0, 18.0, step=1.0, key=f"rt_{cluster_hash}")
-    due = col_c.date_input("Deadline", datetime.now().date()+timedelta(14), key=f"dd_{cluster_hash}")
+    sel_label = col_a.selectbox("Contractor", list(ic_opts.keys()), index=default_idx, key=f"sel_{pod_name}_{i}_{cluster_hash}")
+    rate = col_b.number_input("Rate/Stop", 16.0, 150.0, 18.0, step=1.0, key=f"rt_{pod_name}_{i}_{cluster_hash}")
+    due = col_c.date_input("Deadline", datetime.now().date()+timedelta(14), key=f"dd_{pod_name}_{i}_{cluster_hash}")
 
     ic = ic_opts[sel_label]
     mi, hrs, t_str = get_gmaps(ic['Location'], list(loc_data.keys())[:25])
@@ -437,20 +454,18 @@ def render_dispatch(cluster, pod_name, is_sent=False):
     with m1: st.markdown(f"<div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:15px; margin-bottom:10px;'><p style='font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>Financials</p><p style='margin:0; font-size:24px; font-weight:800; color:{TB_GREEN if eff_stop <= 23.00 else '#ef4444'};'>Total: ${pay:,.2f}</p><p style='margin:0; font-size:13px; color:#000000;'>Effective: ${eff_stop}/stop</p></div>", unsafe_allow_html=True)
     with m2: st.markdown(f"<div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:15px; margin-bottom:10px;'><p style='font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>Logistics</p><p style='margin:0; font-size:24px; font-weight:800; color:#000000;'>{t_str}</p><p style='margin:0; font-size:13px; color:#000000;'>Round Trip: {mi} mi</p></div>", unsafe_allow_html=True)
 
-    # UNIFIED WORK ORDER NUMBER (Name - Date)
     wo_val = f"{ic['Name']} - {datetime.now().strftime('%m%d%Y')}"
 
     sig = (f"Work Order: {wo_val}\nContractor: {ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
            f"Metrics:\n- Stops: {cluster['stops']}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
            f"Authorize here:\n{PORTAL_BASE_URL}?route={link_id}&v2=true")
     
-    # REACTIVE TEXT AREA: Key is dynamically tied to the contractor, pay, and due date so it auto-refreshes
-    st.text_area("Email Content Preview", sig, height=180, key=f"tx_{cluster_hash}_{ic['Name']}_{pay}_{due}")
+    st.text_area("Email Content Preview", sig, height=180, key=f"tx_{pod_name}_{i}_{cluster_hash}_{ic['Name']}_{pay}_{due}")
 
     col1, col2 = st.columns(2)
     with col1:
         if not real_id:
-            if st.button("☁️ Push & Generate Link", key=f"btn_s_{cluster_hash}"):
+            if st.button("☁️ Push & Generate Link", key=f"btn_s_{pod_name}_{i}_{cluster_hash}"):
                 home = ic['Location']
                 payload = {
                     "icn": ic['Name'], "ice": ic['Email'], "wo": wo_val, 
@@ -464,7 +479,7 @@ def render_dispatch(cluster, pod_name, is_sent=False):
                 if res.get("success"):
                     st.session_state[sync_key] = res.get("routeId")
                     st.rerun()
-        else: st.button("✅ Link Generated", disabled=True, key=f"dis_{cluster_hash}")
+        else: st.button("✅ Link Generated", disabled=True, key=f"dis_{pod_name}_{i}_{cluster_hash}")
     
     with col2:
         if real_id:
@@ -502,12 +517,11 @@ def run_pod_tab(pod_name):
     
     c1, c2, c3, c4, c5 = st.columns([1,1,1,1, 1.2])
     
-    # ---> NEW: Calculate total individual tasks utilized for this pod <---
     total_tasks = sum(len(c['data']) for c in cls)
     
     for col, title, val in zip([c1, c2, c3, c4], ["Total Tasks", "Ready", "Sent", "Flagged"], [total_tasks, len(ready), len(sent), len(review)]):
         
-        if title == "Total Tasks": bg_color = "#f8fafc" # Clean light gray
+        if title == "Total Tasks": bg_color = "#f8fafc"
         elif title == "Ready": bg_color = TB_GREEN_FILL
         elif title == "Sent": bg_color = TB_BLUE_FILL
         else: bg_color = TB_RED_FILL
@@ -537,19 +551,19 @@ def run_pod_tab(pod_name):
     
     t_ready, t_out, t_rev = st.tabs(["Dispatch Ready", "Sent", "Flagged"])
     with t_ready:
-        for c in ready:
+        for i, c in enumerate(ready):
             esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-            with st.expander(f"📍 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): render_dispatch(c, pod_name)
+            with st.expander(f"📍 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): render_dispatch(i, c, pod_name)
     with t_out:
-        for c in sent:
+        for i, c in enumerate(sent):
             ic_name = c.get('contractor_name', 'Unknown')
             esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-            with st.expander(f"✓ {ic_name} | {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): render_dispatch(c, pod_name, is_sent=True)
+            with st.expander(f"✓ {ic_name} | {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): render_dispatch(i+500, c, pod_name, is_sent=True)
     with t_rev:
-        for c in review:
+        for i, c in enumerate(review):
             status_emoji = "🔴" if not c.get('has_ic') else "⚠" 
             esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-            with st.expander(f"{status_emoji} {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): render_dispatch(c, pod_name)
+            with st.expander(f"{status_emoji} {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): render_dispatch(i+1000, c, pod_name)
 
 # --- START ---
 if "ic_df" not in st.session_state:
