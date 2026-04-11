@@ -402,21 +402,25 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
     for c in cluster['data']:
         addr = c['full']
         if addr not in loc_data:
-            # Added 'install' to the counter dictionary
-            loc_data[addr] = {'total': 0, 'new': 0, 'cont': 0, 'def': 0, 'install': 0, 'other': 0}
+            loc_data[addr] = {'total': 0, 'new': 0, 'cont': 0, 'def': 0, 'install': 0, 'removal': 0, 'digital': 0, 'other': 0}
         
         loc_data[addr]['total'] += 1
         tt = str(c.get('task_type', '')).strip().lower()
         
-        # Categorize strictly using IF/ELIF to completely prevent double-counting
-        if any(x in tt for x in ["new ad", "digital ad with bottom", "digital ad with magnet", "art change"]):
+        # Categorize strictly using IF/ELIF
+        # Blank tasks (not tt) and "location in venue incorrect" now map to New Ad
+        if not tt or any(x in tt for x in ["new ad", "digital ad with bottom", "digital ad with magnet", "art change", "location in venue incorrect"]):
             loc_data[addr]['new'] += 1
         elif any(x in tt for x in ["continuity", "ad takedown", "move kiosk", "photo retake", "pull down", "swap magnets", "reorder", "fix", "digital photo", "photo"]):
             loc_data[addr]['cont'] += 1
         elif any(x in tt for x in ["default", "store default", "default ad"]):
             loc_data[addr]['def'] += 1
-        elif any(x in tt for x in ["kiosk install", "install"]): # <--- NEW INSTALL BUCKET
+        elif any(x in tt for x in ["kiosk install", "install"]): 
             loc_data[addr]['install'] += 1
+        elif any(x in tt for x in ["kiosk removal", "cvs kiosk removal"]): 
+            loc_data[addr]['removal'] += 1
+        elif any(x in tt for x in ["digital service", "digital ins/remove"]): 
+            loc_data[addr]['digital'] += 1
         else:
             loc_data[addr]['other'] += 1
 
@@ -427,7 +431,9 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
         if counts['new'] > 0: pill_parts.append(f"🆕 {counts['new']} New Ad")
         if counts['cont'] > 0: pill_parts.append(f"🔄 {counts['cont']} Continuity")
         if counts['def'] > 0: pill_parts.append(f"⚪ {counts['def']} Default")
-        if counts['install'] > 0: pill_parts.append(f"🛠️ {counts['install']} Install") # <--- NEW INSTALL PILL
+        if counts['install'] > 0: pill_parts.append(f"🛠️ {counts['install']} Install")
+        if counts['removal'] > 0: pill_parts.append(f"🛑 {counts['removal']} Removal")
+        if counts['digital'] > 0: pill_parts.append(f"📱 {counts['digital']} Digital")
         if counts['other'] > 0: pill_parts.append(f"📦 {counts['other']} Other")
         
         # Build the clean string without brackets for the Google Sheet payload
