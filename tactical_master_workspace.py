@@ -251,7 +251,43 @@ def process_pod(pod_name):
             
             # Tag for the Star Pill (Team Check)
             is_esc = (c_type == 'TEAM' and container.get('team') in esc_team_ids)
+
+            # ---> NEW: Bulletproof Task Type Extraction <---
+            tt_val = ""
             
+            # Check 1: Try the top-level task container just in case it isn't nested
+            if 'taskType' in t:
+                tt_val = str(t.get('taskType', '')).strip()
+            
+            # Check 2: Dig deeply through the Metadata array
+            if not tt_val:
+                for m in (t.get('metadata') or []):
+                    m_name = str(m.get('name', '')).lower().strip()
+                    if m_name == 'tasktype' or m_name == 'task type':
+                        tt_val = str(m.get('value', '')).strip()
+                        break
+            
+            # Check 3: Check custom fields array (sometimes Onfleet puts it here instead of metadata)
+            if not tt_val and 'customFields' in t:
+                for cf in (t.get('customFields') or []):
+                    cf_name = str(cf.get('name', '')).lower().strip()
+                    if cf_name == 'tasktype' or cf_name == 'task type':
+                        tt_val = str(cf.get('value', '')).strip()
+                        break
+                        
+            # Check 4: The Fallback - Read the literal task notes
+            if not tt_val:
+                tt_val = str(t.get('taskDetails', '')).strip()
+            
+            if stt in config['states']:
+                pool.append({
+                    "id": t['id'], "city": addr.get('city', 'Unknown'), "state": stt,
+                    "full": f"{addr.get('number','')} {addr.get('street','')}, {addr.get('city','')}, {stt}",
+                    "lat": t['destination']['location'][1], "lon": t['destination']['location'][0],
+                    "escalated": is_esc,
+                    "task_type": tt_val
+                })
+                
             # Tag for the Star Pill (Metadata Fallback Check)
             if not is_esc:
                 for m in (t.get('metadata') or []):
