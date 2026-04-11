@@ -460,32 +460,84 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
     rate = col_b.number_input("Rate/Stop", 16.0, 150.0, 18.0, step=1.0, key=f"rt_{pod_name}_{i}_{cluster_hash}")
     due = col_c.date_input("Deadline", datetime.now().date()+timedelta(14), key=f"dd_{pod_name}_{i}_{cluster_hash}")
 
+    # --- 1. LOGISTICS CALCULATION ---
     ic = ic_opts[sel_label]
     mi, hrs, t_str = get_gmaps(ic['Location'], list(stop_metrics.keys())[:25])
-    pay = round(max(cluster['stops'] * rate, hrs * 25.0), 2)
-    eff_stop = round(pay / cluster['stops'], 2) if cluster['stops'] > 0 else 0
+    
+    # Define unique keys for this specific cluster to avoid cross-talk
+    pay_key = f"pay_val_{cluster_hash}"
+    rate_key = f"rate_val_{cluster_hash}"
 
+    # --- 2. DYNAMIC SYNC CALLBACKS ---
+    def update_rate():
+        # When Total is changed, update the Rate
+        st.session_state[rate_key] = round(st.session_state[pay_key] / cluster['stops'], 2)
+
+    def update_pay():
+        # When Rate is changed, update the Total
+        st.session_state[pay_key] = round(st.session_state[rate_key] * cluster['stops'], 2)
+
+    # Initialize values if they don't exist yet
+    if pay_key not in st.session_state:
+        # Your original logic for the starting "floor" price
+        initial_pay = round(max(cluster['stops'] * 18.0, hrs * 25.0), 2)
+        st.session_state[pay_key] = float(initial_pay)
+        st.session_state[rate_key] = float(round(initial_pay / cluster['stops'], 2))
+
+    # --- 3. INPUT COLUMNS ---
+    col_a, col_b, col_c = st.columns([1.5, 1.2, 1.2])
+    
+    with col_a:
+        # Contractor select stays the same
+        sel_label = st.selectbox("Contractor", list(ic_opts.keys()), index=default_idx, key=f"sel_{cluster_hash}")
+
+    with col_b:
+        # Total input triggers the update_rate callback
+        pay = st.number_input("Total Comp ($)", min_value=0.0, step=5.0, 
+                              key=pay_key, on_change=update_rate)
+
+    with col_c:
+        # Rate input triggers the update_pay callback
+        eff_stop = st.number_input("Rate/Stop ($)", min_value=0.0, step=1.0, 
+                                   key=rate_key, on_change=update_pay)
+
+    due = st.date_input("Deadline", datetime.now().date()+timedelta(14), key=f"dd_{cluster_hash}")
+
+    # --- 4. DYNAMIC FINANCIALS DISPLAY ---
     m1, m2 = st.columns(2)
-    with m1: st.markdown(f"<div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:15px; margin-bottom:10px;'><p style='font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>Financials</p><p style='margin:0; font-size:24px; font-weight:800; color:{TB_GREEN if eff_stop <= 23.00 else '#ef4444'};'>Total: ${pay:,.2f}</p><p style='margin:0; font-size:13px; color:#000000;'>Effective: ${eff_stop}/stop</p></div>", unsafe_allow_html=True)
-    with m2: st.markdown(f"<div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:15px; margin-bottom:10px;'><p style='font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>Logistics</p><p style='margin:0; font-size:24px; font-weight:800; color:#000000;'>{t_str}</p><p style='margin:0; font-size:13px; color:#000000;'>Round Trip: {mi} mi</p></div>", unsafe_allow_html=True)
+    with m1: 
+        # Color logic based on the dynamic eff_stop value
+        status_color = TB_GREEN if 18.0 <= eff_stop <= 23.0 else "#ef4444"
+        st.markdown(f"""
+            <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:15px; margin-bottom:10px;'>
+                <p style='font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>Financials</p>
+                <p style='margin:0; font-size:24px; font-weight:800; color:{status_color};'>Total: ${pay:,.2f}</p>
+                <p style='margin:0; font-size:13px; color:#000000;'>Breakdown: ${eff_stop}/stop x {cluster['stops']} stops</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+    with m2: 
+        st.markdown(f"""
+            <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:15px; margin-bottom:10px;'>
+                <p style='font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>Logistics</p>
+                <p style='margin:0; font-size:24px; font-weight:800; color:#000000;'>{t_str}</p>
+                <p style='margin:0; font-size:13px; color:#000000;'>Round Trip: {mi} mi</p>
+            </div>
+        """, unsafe_allow_html=True)
 
+    # --- 5. PREVIEW & BUTTONS (Use the dynamic 'pay' and 'eff_stop') ---
     wo_val = f"{ic['Name']} - {datetime.now().strftime('%m%d%Y')}"
 
-    # 1. Preview Signature (Shows "LINK_PENDING" before generation)
     sig_preview = (f"Work Order: {wo_val}\nContractor: {ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
            f"Metrics:\n- Stops: {cluster['stops']}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
            f"Authorize here:\n{PORTAL_BASE_URL}?route={link_id}&v2=true")
 
-    st.text_area("Email Content Preview", sig_preview, height=180, key=f"tx_{pod_name}_{i}_{cluster_hash}_{ic['Name']}_{pay}_{due}")
+    st.text_area("Email Content Preview", sig_preview, height=180, key=f"tx_{cluster_hash}_preview")
 
-    # 2. THE ONE-CLICK COMBO BUTTON
     btn_label = "🚀 GENERATE LINK & OPEN GMAIL" if (not real_id or is_declined) else "🚀 OPEN IN GMAIL (RESEND)"
 
     if st.button(btn_label, type="primary", key=f"gbtn_{cluster_hash}"):
-        
         final_route_id = real_id
-        
-        # --- STEP A: GENERATE THE LINK ---
         with st.spinner("Generating secure link..."):
             if not final_route_id or is_declined:
                 home = ic['Location']
@@ -497,44 +549,26 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
                     "tCnt": len(task_ids),
                     "jobOnly": " | ".join([f"{a} {pill}" for a, pill in loc_pills.items()])
                 }
-                
                 res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
                 if res.get("success"):
                     final_route_id = res.get("routeId")
                     st.session_state[sync_key] = final_route_id
                 else:
-                    st.error("Failed to generate link from Google Sheets.")
-                    st.stop()
+                    st.error("Failed to generate link."); st.stop()
 
-        # --- STEP B: BUILD THE REAL EMAIL ---
+        # Re-build final signature with the dynamic 'pay'
         final_sig = (f"Work Order: {wo_val}\nContractor: {ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
                f"Metrics:\n- Stops: {cluster['stops']}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
                f"Authorize here:\n{PORTAL_BASE_URL}?route={final_route_id}&v2=true")
         
         gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={ic['Email']}&su=Route Request: {ic['Name']}&body={requests.utils.quote(final_sig)}"
         
-        # --- STEP C: UPDATE STATUS STATE ---
-        now_ts = datetime.now().strftime('%m/%d %I:%M %p')
-        st.session_state[f"sent_ts_{cluster_hash}"] = now_ts
-        st.session_state[f"contractor_{cluster_hash}"] = ic['Name']
-        st.session_state[f"status_override_{cluster_hash}"] = "sent" 
+        st.components.v1.html(f"<script>window.open('{gmail_url}', '_blank');</script>", height=0)
         
-        # --- STEP D: POP GMAIL ---
-        st.components.v1.html(
-            f"""
-            <script>
-                window.open('{gmail_url}', '_blank');
-            </script>
-            """,
-            height=0,
-        )
-        
-        # --- STEP E: THE 10-SECOND VISUAL COUNTDOWN ---
         timer_placeholder = st.empty()
         for sec in range(10, 0, -1):
-            timer_placeholder.success(f"✅ Link Generated & Gmail Opened! Moving card to 'Sent' in {sec} seconds...")
+            timer_placeholder.success(f"✅ Link Generated! Moving card in {sec}s...")
             time.sleep(1)
-            
         st.rerun()
             
 def run_pod_tab(pod_name):
