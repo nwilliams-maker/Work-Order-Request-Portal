@@ -218,7 +218,8 @@ def process_pod(pod_name):
                 pool.append({
                     "id": t['id'], "city": addr.get('city', 'Unknown'), "state": stt,
                     "full": f"{addr.get('number','')} {addr.get('street','')}, {addr.get('city','')}, {stt}",
-                    "lat": t['destination']['location'][1], "lon": t['destination']['location'][0]
+                    "lat": t['destination']['location'][1], "lon": t['destination']['location'][0],
+                    "escalated": is_esc #
                 })
         
         clusters = []
@@ -303,7 +304,8 @@ def process_pod(pod_name):
                 "stops": len(set(x['full'] for x in group)), 
                 "city": anc['city'], "state": anc['state'],
                 "status": status,
-                "has_ic": has_ic
+                "has_ic": has_ic,
+                "esc_count": sum(1 for x in group if x.get('escalated'))
             })
             
         st.session_state[f"clusters_{pod_name}"] = clusters
@@ -454,16 +456,19 @@ def run_pod_tab(pod_name):
     
     t_ready, t_out, t_rev = st.tabs(["Dispatch Ready", "Sent", "Flagged"])
     with t_ready:
-        for c in ready:
-            with st.expander(f"📍 {c['city']}, {c['state']} | {c['stops']} Stops"): render_dispatch(c, pod_name)
+        for i, c in enumerate(ready):
+            esc_pill = f"  [ ⭐ {c['esc_count']} ]" if c.get('esc_count', 0) > 0 else ""
+            with st.expander(f"📍 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): render_dispatch(i, c, pod_name)
     with t_out:
-        for c in sent:
+        for i, c in enumerate(sent):
             ic_name = c.get('contractor_name', 'Unknown')
-            with st.expander(f"✓ {ic_name} | {c['city']}, {c['state']} | {c['stops']} Stops"): render_dispatch(c, pod_name, is_sent=True)
+            esc_pill = f"  [ ⭐ {c['esc_count']} ]" if c.get('esc_count', 0) > 0 else ""
+            with st.expander(f"✓ {ic_name} | {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): render_dispatch(i+500, c, pod_name, is_sent=True)
     with t_rev:
-        for c in review:
+        for i, c in enumerate(review):
             status_emoji = "🔴" if not c.get('has_ic') else "⚠" 
-            with st.expander(f"{status_emoji} {c['city']}, {c['state']} | {c['stops']} Stops"): render_dispatch(c, pod_name)
+            esc_pill = f"  [ ⭐ {c['esc_count']} ]" if c.get('esc_count', 0) > 0 else ""
+            with st.expander(f"{status_emoji} {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): render_dispatch(i+1000, c, pod_name)
 
 # --- START ---
 if "ic_df" not in st.session_state:
