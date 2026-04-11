@@ -665,11 +665,11 @@ def run_pod_tab(pod_name):
         """, unsafe_allow_html=True)
 
     with c3:
-        # 1. The Supercard Background (Aligned perfectly with the others)
+        # 1. The Supercard Background (Notice the gap is now 45px to create a hole in the middle!)
         st.markdown(f"""
             <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:0px; height: 110px;'>
                 <p style='margin:0 0 5px 0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase; text-align:center;'>Dispatched Tracking: {total_dispatched}</p>
-                <div style='display:flex; justify-content:space-between; gap:8px;'>
+                <div style='display:flex; justify-content:space-between; gap:45px;'>
                     <div style='background:{TB_GREEN_FILL}; flex:1; padding:8px; border-radius:8px; text-align:center;'>
                         <p style='margin:0; font-size:9px; font-weight:800; color:#000000;'>ACCEPTED</p>
                         <p style='margin:0; font-size:20px; font-weight:800; color:#000000;'>{len(accepted)}</p>
@@ -683,66 +683,47 @@ def run_pod_tab(pod_name):
         """, unsafe_allow_html=True)
         
         # 2. Render the tiny tertiary button
-        if st.button("↻", type="tertiary", key=f"sync_track_{pod_name}"):
+        if st.button("↻", type="tertiary", key=f"sync_track_{pod_name}", help="Sync Status"):
             fetch_sent_records_from_sheet.clear()
             st.rerun()
 
-        # 3. The bulletproof CSS using negative margin on the button itself
+        # 3. The bulletproof CSS to pull the button directly into the center gap
         st.markdown("""
             <style>
-            /* Absolute position the button, pull it UP 105px, pin to the right */
-            button[kind="tertiary"] {
-                position: absolute !important;
-                margin-top: -105px !important;
-                right: 12px !important;
-                background-color: transparent !important;
+            /* 1. Target the button's invisible wrapper inside the 3rd column */
+            div[data-testid="column"]:nth-of-type(3) div.stButton {
+                margin-top: -70px !important; /* Pull up directly into the middle of the boxes */
+                display: flex !important;
+                justify-content: center !important; /* Perfectly center it horizontally */
+                position: relative !important;
+                z-index: 99 !important;
+                height: 0px !important; /* Prevent it from pushing the map down */
+            }
+
+            /* 2. Style the button to be small, transparent, and dark */
+            div[data-testid="column"]:nth-of-type(3) button[kind="tertiary"] {
                 background: transparent !important;
                 border: none !important;
                 box-shadow: none !important;
-                color: #1e293b !important; /* Dark slate text */
-                font-size: 16px !important; /* Very small icon */
-                font-weight: 800 !important;
-                width: 24px !important;
-                height: 24px !important;
+                color: #475569 !important; /* Slate grey */
+                font-size: 20px !important;
+                font-weight: 900 !important;
                 padding: 0 !important;
+                width: 35px !important;
+                height: 35px !important;
                 min-height: 0 !important;
                 line-height: 1 !important;
-                z-index: 99 !important;
                 transition: transform 0.4s ease, color 0.2s ease !important;
             }
 
-            /* Darken on hover, apply spin, KEEP transparent */
-            button[kind="tertiary"]:hover,
-            button[kind="tertiary"]:focus,
-            button[kind="tertiary"]:active {
-                background-color: transparent !important;
-                background: transparent !important;
-                border: none !important;
-                box-shadow: none !important;
-                color: #000000 !important; /* True black */
+            /* 3. Spin effect on hover */
+            div[data-testid="column"]:nth-of-type(3) button[kind="tertiary"]:hover,
+            div[data-testid="column"]:nth-of-type(3) button[kind="tertiary"]:focus,
+            div[data-testid="column"]:nth-of-type(3) button[kind="tertiary"]:active {
                 transform: rotate(180deg) !important;
-            }
-            
-            /* Destroy the ghost shadows Streamlit tries to render */
-            button[kind="tertiary"]::before,
-            button[kind="tertiary"]::after {
-                display: none !important;
-            }
-            
-            /* Clean up the inner paragraph text */
-            button[kind="tertiary"] p {
-                font-size: 16px !important;
-                color: inherit !important;
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-
-            /* Optional: Crush the wrapper so it doesn't push the map down */
-            div[data-testid="stButton"]:has(button[kind="tertiary"]) {
-                height: 0px !important;
-                min-height: 0px !important;
-                margin: 0 !important;
-                padding: 0 !important;
+                color: #000000 !important;
+                background: transparent !important;
+                box-shadow: none !important;
             }
             </style>
         """, unsafe_allow_html=True)
