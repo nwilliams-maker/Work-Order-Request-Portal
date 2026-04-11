@@ -71,7 +71,7 @@ st.markdown(f"""
     .stTabs [data-baseweb="tab"] {{ border-radius: 10px !important; padding: 10px 20px !important; font-weight: 700 !important; }}
 
     /* MODERN INTEGRATED SYNC ICON */
-    button[title="Sync Pod Status"] {{
+    button[title="Sync Pod Status"] {
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
@@ -86,12 +86,19 @@ st.markdown(f"""
         min-height: 0 !important;
         display: flex !important;
         align-items: center !important;
-    }}
+    }
 
-    button[title="Sync Pod Status"]:hover {{
+    button[title="Sync Pod Status"]:hover {
         color: #76bc21 !important; /* TB_GREEN Glow */
         transform: rotate(180deg) scale(1.1) !important;
         background: transparent !important;
+    }
+
+    /* Target the inner span to ensure no Streamlit styling leaks through */
+    button[title="Sync Pod Status"] div[data-testid="stMarkdownContainer"] p {{
+        font-size: 24px !important;
+        font-weight: 900 !important;
+        color: inherit !important;
     }}
 
     /* Target the inner span to ensure no Streamlit styling leaks through */
