@@ -69,7 +69,25 @@ st.markdown(f"""
     /* GLOBAL TABS STYLING */
     .stTabs [data-baseweb="tab-list"] {{ justify-content: center; gap: 8px; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 15px; }}
     .stTabs [data-baseweb="tab"] {{ border-radius: 10px !important; padding: 10px 20px !important; font-weight: 700 !important; }}
-    
+
+    /* POD HEADER SYNC BUTTON */
+    button[title="Sync Pod Status"] {{
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: #64748b !important;
+        font-size: 18px !important;
+        font-weight: 900 !important;
+        padding: 0 !important;
+        float: right !important;
+        transition: transform 0.4s ease, color 0.2s ease !important;
+    }}
+
+    button[title="Sync Pod Status"]:hover {{
+        transform: rotate(180deg) !important;
+        color: #000000 !important;
+        background-color: transparent !important;
+    }}
     /* TOP LEVEL TABS (Pod Colors) */
     .stTabs [data-baseweb="tab"]:nth-of-type(1) {{ background-color: #ffffff !important; color: #000000 !important; }}
     .stTabs [data-baseweb="tab"]:nth-of-type(2) {{ background-color: #dbeafe !important; color: #000000 !important; }}
@@ -552,8 +570,20 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         st.rerun()
                 
 def run_pod_tab(pod_name):
-    st.markdown(f"<h2 style='text-align:center;'>{pod_name} Dashboard</h2>", unsafe_allow_html=True)
+    # Create a header row for the title and the local refresh icon
+    head_col1, head_col2 = st.columns([0.9, 0.1])
+    
+    with head_col1:
+        st.markdown(f"<h2 style='text-align:center; margin-left: 10%;'>{pod_name} Dashboard</h2>", unsafe_allow_html=True)
+    
+    with head_col2:
+        if st.button("↻", key=f"sync_pod_{pod_name}", help="Sync Pod Status", type="tertiary"):
+            fetch_sent_records_from_sheet.clear()
+            st.rerun()
+
     if f"clusters_{pod_name}" not in st.session_state:
+        
+        # ... rest of your initialization logic
         if st.button(f"🚀 Initialize {pod_name} Data", key=f"init_{pod_name}"):
             process_pod(pod_name)
             st.rerun()
@@ -665,16 +695,6 @@ def run_pod_tab(pod_name):
         """, unsafe_allow_html=True)
 
     with c3:
-        # 1. Create a header row specifically for the Sync Icon
-        # This pushes the button to the far right without using absolute positioning
-        sync_cols = st.columns([0.85, 0.15])
-        with sync_cols[1]:
-            # type="tertiary" is the magic key—it natively makes the button transparent
-            if st.button("↻", type="tertiary", key=f"sync_track_{pod_name}", help="Force Sync Portal"):
-                fetch_sent_records_from_sheet.clear()
-                st.rerun()
-
-        # 2. The Supercard Background (Clean, stable, and perfectly aligned)
         st.markdown(f"""
             <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); height: 110px;'>
                 <p style='margin:0 0 5px 0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase; text-align:center;'>Dispatched Tracking: {total_dispatched}</p>
@@ -689,39 +709,6 @@ def run_pod_tab(pod_name):
                     </div>
                 </div>
             </div>
-        """, unsafe_allow_html=True)
-
-        # 3. Aggressive CSS for the icon only
-        st.markdown(f"""
-            <style>
-            /* This ensures the icon is tiny, black, and has NO grey box */
-            div[data-testid="column"]:nth-of-type(3) button[kind="tertiary"] {{
-                color: #000000 !important;
-                background-color: transparent !important;
-                border: none !important;
-                box-shadow: none !important;
-                font-size: 18px !important;
-                font-weight: 900 !important;
-                padding: 0px !important;
-                min-height: 0px !important;
-                height: 25px !important;
-                width: 25px !important;
-                float: right !important;
-                margin-top: -5px !important;
-            }}
-            
-            /* Spin effect on hover */
-            div[data-testid="column"]:nth-of-type(3) button[kind="tertiary"]:hover {{
-                transform: rotate(180deg) !important;
-                transition: transform 0.4s ease !important;
-                color: #76bc21 !important; /* TB_GREEN on hover */
-            }}
-
-            /* Shrink the vertical gap between the button and the card */
-            div[data-testid="column"]:nth-of-type(3) div[data-testid="stVerticalBlock"] {{
-                gap: 0rem !important;
-            }}
-            </style>
         """, unsafe_allow_html=True)
 
     # --- MAP RENDERING (STAYS RIGHT BELOW) ---
