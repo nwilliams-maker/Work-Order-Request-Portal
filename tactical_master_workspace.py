@@ -727,8 +727,26 @@ def run_pod_tab(pod_name):
     with t1:
         if not ready: st.info("No tasks ready for dispatch.")
         for i, c in enumerate(ready):
+            # --- 1. PRE-CALCULATE BADGES FOR SCAN-ABILITY ---
+            # We check the default (closest) IC to see if this route will be "Premium"
+            badges = ""
+            if v_ics := ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy():
+                v_ics['d'] = v_ics.apply(lambda x: haversine(c['center'][0], c['center'][1], x['Lat'], x['Lng']), axis=1)
+                closest_ic = v_ics.sort_values('d').iloc[0]
+                
+                # Check conditions
+                _, hrs, _ = get_gmaps(closest_ic['Location'], [t['full'] for t in c['data'][:25]])
+                est_pay = max(c['stops'] * 18.0, hrs * 25.0)
+                est_rate = est_pay / c['stops'] if c['stops'] > 0 else 0
+                
+                if est_rate >= 25.0: badges += " 💰"  # High Rate Badge
+                if closest_ic['d'] > 60: badges += " 📡" # Long Distance Badge
+                if est_rate >= 25.0 or closest_ic['d'] > 60: badges = " 🔒" + badges # Lock Badge
+
             esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-            with st.expander(f"📍 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
+            
+            # --- 2. RENDER EXPANDER WITH BADGES ---
+            with st.expander(f"{badges} 📍 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
                 render_dispatch(i, c, pod_name)
 
     with t2:
@@ -737,17 +755,17 @@ def run_pod_tab(pod_name):
             ic_name = c.get('contractor_name', 'Unknown')
             ts_label = f" | {c.get('route_ts', '')}" if c.get('route_ts') else ""
             esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-            with st.expander(f"✉️ Sent: {ic_name}{ts_label} | {c['city']}, {c['state']}{esc_pill}"): 
+            # Sent routes get a paper plane icon
+            with st.expander(f"✉️ {ic_name}{ts_label} | {c['city']}, {c['state']}{esc_pill}"): 
                 render_dispatch(i+500, c, pod_name, is_sent=True)
             
     with t3:
         if not review: st.info("No flagged tasks requiring review.")
         for i, c in enumerate(review):
-            status_emoji = "🔴" if not c.get('has_ic') else "⚠️" 
+            # Flagged routes always start with a lock and a red circle
             esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-            with st.expander(f"{status_emoji} {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
+            with st.expander(f"🔒 🔴 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
                 render_dispatch(i+1000, c, pod_name)
-
     with gap: st.write(" ")
 
     with t4:
