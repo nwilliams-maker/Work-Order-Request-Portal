@@ -97,14 +97,16 @@ st.markdown(f"""
         box-shadow: 0 6px 10px rgba(0,0,0,0.15) !important;
     }}
 
-    /* EMBEDDED SYNC ICON HACK */
-    div.element-container:has(button[key^="sync_track_"]),
-    div[data-testid="stButton"]:has(button[key^="sync_track_"]) {{
-        position: absolute;
-        top: 8px;
-        right: 15px;
-        width: auto !important;
-        z-index: 10;
+    /* EMBEDDED SYNC ICON HACK (Pulls button inside the card) */
+    div.element-container:has(button[key^="sync_track_"]) {{
+        margin-top: -125px !important; /* Pulls the button up into the white card */
+        height: 0px !important;        /* Prevents it from adding blank space below */
+        overflow: visible !important;
+        display: flex !important;
+        justify-content: flex-end !important;
+        padding-right: 15px !important;
+        position: relative !important;
+        z-index: 10 !important;
     }}
     
     button[key^="sync_track_"] {{
@@ -112,15 +114,15 @@ st.markdown(f"""
         border: none !important;
         box-shadow: none !important;
         padding: 0 !important;
-        font-size: 16px !important;
-        width: 24px !important;
-        height: 24px !important;
+        font-size: 14px !important;
+        width: 25px !important;
+        height: 25px !important;
         color: #475569 !important;
         transition: transform 0.4s ease !important;
     }}
     
     button[key^="sync_track_"]:hover {{
-        transform: rotate(180deg) !important; /* Cool spin effect on hover */
+        transform: rotate(180deg) !important;
         filter: brightness(0.5) !important;
     }}
     
@@ -673,14 +675,9 @@ def run_pod_tab(pod_name):
         """, unsafe_allow_html=True)
 
     with c3:
-        # 1. The Invisible/Floating Sync Button
-        if st.button("🔄", key=f"sync_track_{pod_name}", help="Force Sync Portal Accept/Declines"):
-            fetch_sent_records_from_sheet.clear()
-            st.rerun()
-
-        # 2. The Card Background (Position set to relative so the button floats perfectly inside)
+        # 1. The Card Background (Drawn first)
         st.markdown(f"""
-            <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:20px; height: 110px; position:relative;'>
+            <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:20px; height: 110px;'>
                 <p style='margin:0 0 5px 0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase; text-align:center;'>Dispatched Tracking: {total_dispatched}</p>
                 <div style='display:flex; justify-content:space-between; gap:8px;'>
                     <div style='background:{TB_GREEN_FILL}; flex:1; padding:8px; border-radius:8px; text-align:center;'>
@@ -694,6 +691,11 @@ def run_pod_tab(pod_name):
                 </div>
             </div>
         """, unsafe_allow_html=True)
+        
+        # 2. The Sync Button (Rendered second, but CSS pulls it UP inside the card!)
+        if st.button("🔄", key=f"sync_track_{pod_name}", help="Force Sync Portal Accept/Declines"):
+            fetch_sent_records_from_sheet.clear()
+            st.rerun()
         
     # MAP REMAINS UNTOUCHED
     m = folium.Map(location=cls[0]['center'], zoom_start=6, tiles="cartodbpositron")
