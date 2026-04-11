@@ -17,9 +17,9 @@ PORTAL_BASE_URL = "https://nwilliams-maker.github.io/Route-Authorization-Portal/
 GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbynAIziubArSQ0hVGTvJMpk11a9yLP0kNcSmGpcY7GDNRT25Po5p92K3EDslx9VycKC/exec"
 IC_SHEET_URL = "https://docs.google.com/spreadsheets/d/1y6wX0x93iDc3gdK_nZKLD-2QcGkUHkcM75u90ffRO6k/edit#gid=0"
 SAVED_ROUTES_GID = "1477617688" 
-# --- ADD THESE TO YOUR CONFIG SECTION ---
 ACCEPTED_ROUTES_GID = "934075207" 
 DECLINED_ROUTES_GID = "600909788"
+
 # Terraboost Media Brand Palette
 TB_PURPLE = "#633094"
 TB_GREEN = "#76bc21"
@@ -55,7 +55,7 @@ STATE_MAP = {
 
 headers = {"Authorization": f"Basic {base64.b64encode(f'{ONFLEET_KEY}:'.encode()).decode()}"}
 
-st.set_page_config(page_title="Tactical Command", layout="wide")
+st.set_page_config(page_title="Dispatch Command Center", layout="wide")
 
 # --- UI STYLING ---
 st.markdown(f"""
@@ -79,11 +79,6 @@ st.markdown(f"""
     .stTabs [data-baseweb="tab"]:nth-of-type(6) {{ background-color: #fee2e2 !important; color: #000000 !important; }}
     .stTabs [aria-selected="true"] {{ transform: scale(1.05); border: 2px solid {TB_PURPLE} !important; z-index: 1; }}
 
-    /* NESTED SUB-TABS OVERRIDE (Ready = Green, Sent = Blue, Flagged = Red) */
-    div[data-testid="stTabs"] div[data-testid="stTabs"] [data-baseweb="tab"]:nth-of-type(1) {{ background-color: {TB_GREEN_FILL} !important; color: #000000 !important; }}
-    div[data-testid="stTabs"] div[data-testid="stTabs"] [data-baseweb="tab"]:nth-of-type(2) {{ background-color: {TB_BLUE_FILL} !important; color: #000000 !important; }}
-    div[data-testid="stTabs"] div[data-testid="stTabs"] [data-baseweb="tab"]:nth-of-type(3) {{ background-color: {TB_RED_FILL} !important; color: #000000 !important; }}
-
     /* FORCE EXPANDER CARDS PURE WHITE */
     div[data-testid="stExpander"],
     div[data-testid="stExpander"] > details,
@@ -94,43 +89,19 @@ st.markdown(f"""
     }}
     div[data-testid="stExpander"] {{ border: 1px solid #cbd5e1 !important; border-radius: 15px !important; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); margin-bottom: 20px; overflow: hidden; }}
     div[data-testid="stExpander"] details summary p {{ color: #000000 !important; font-weight: 800 !important; }}
-    div[data-testid="stExpander"] svg {{ fill: #000000 !important; color: #000000 !important; }}
     
     /* FORCE TEXT AREA AND INPUTS PURE WHITE WITH BLACK TEXT */
     div[data-baseweb="select"] > div, 
     div[data-testid="stNumberInput"] input, 
     div[data-testid="stDateInput"] input,
     div[data-testid="stTextArea"] textarea {{ 
-        background-color: #ffffff !important; 
-        color: #000000 !important; 
-        border: 1.5px solid #cbd5e1 !important; 
-        border-radius: 8px !important;
+        background-color: #ffffff !important; color: #000000 !important; border: 1.5px solid #cbd5e1 !important; border-radius: 8px !important;
     }}
 
-    /* FORCE LABELS TO BLACK */
-    label, div[data-testid="stWidgetLabel"] p {{
-        color: #000000 !important;
-        font-weight: 600 !important;
-    }}
+    label, div[data-testid="stWidgetLabel"] p {{ color: #000000 !important; font-weight: 600 !important; }}
     
-    /* Hover Fix for Inputs and Dropdowns */
-    div[data-baseweb="select"] > div:hover, 
-    div[data-testid="stNumberInput"] input:hover, 
-    div[data-testid="stDateInput"] input:hover,
-    div[data-testid="stTextArea"] textarea:hover,
-    li[role="option"]:hover,
-    ul[role="listbox"] li:hover {{
-        background-color: {TB_HOVER_GRAY} !important;
-        color: #000000 !important;
-    }}
-    
-    /* Terraboost Action Buttons (Purple) */
     .stButton>button {{ background-color: {TB_PURPLE} !important; color: #ffffff !important; font-weight: 800 !important; border-radius: 12px !important; width: 100%; border: none !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s ease; }}
     .stButton>button:hover {{ filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 6px 10px rgba(0,0,0,0.15); color: #ffffff !important; }}
-    
-    /* Gmail Green Buttons */
-    .gmail-btn {{ text-align: center; background-color: {TB_GREEN} !important; color: #ffffff !important; padding: 12px; border-radius: 12px; font-weight: 800; display: block; text-decoration: none; border: none !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s ease; }}
-    .gmail-btn:hover {{ filter: brightness(1.05); transform: translateY(-2px); box-shadow: 0 6px 10px rgba(0,0,0,0.15); color: #ffffff !important; }}
     
     div[data-testid="stMetricValue"] > div {{ color: #000000 !important; }}
     </style>
@@ -151,16 +122,18 @@ def normalize_state(st_str):
 def fetch_sent_records_from_sheet():
     try:
         base_url = f"{IC_SHEET_URL.split('/edit')[0]}/export?format=csv&gid="
+        
+        # Priority: Declined, Accepted, then Saved (Saved overwrites if active again)
         sheets_to_fetch = [
-            (SAVED_ROUTES_GID, "sent"),
+            (DECLINED_ROUTES_GID, "declined"),
             (ACCEPTED_ROUTES_GID, "accepted"),
-            (DECLINED_ROUTES_GID, "declined")
+            (SAVED_ROUTES_GID, "sent")
         ]
         
         sent_dict = {}
         for gid, status_label in sheets_to_fetch:
             try:
-                df = pd.read_csv(base_url + str(gid))
+                df = pd.read_csv(base_url + gid)
                 df.columns = [str(c).strip().lower() for c in df.columns]
                 
                 if 'json payload' in df.columns:
@@ -168,9 +141,9 @@ def fetch_sent_records_from_sheet():
                         try:
                             p = json.loads(row['json payload'])
                             tids = str(p.get('taskIds', '')).replace('|', ',').split(',')
-                            c_name = row.get('contractor', 'Unknown')
+                            c_name = str(row.get('contractor', 'Unknown Contractor'))
                             
-                            # Parse the date created
+                            # Safe Timestamp Extraction
                             raw_ts = row.get('date created', '')
                             ts_display = ""
                             if pd.notna(raw_ts) and str(raw_ts).strip():
@@ -178,23 +151,20 @@ def fetch_sent_records_from_sheet():
                                     ts_display = pd.to_datetime(raw_ts).strftime('%m/%d %I:%M %p')
                                 except:
                                     ts_display = str(raw_ts)
-                                    
+                            
                             for tid in tids:
                                 tid = tid.strip()
                                 if tid:
                                     sent_dict[tid] = {
-                                        "name": c_name,
+                                        "name": c_name, 
                                         "status": status_label,
                                         "time": ts_display
                                     }
                         except: continue
-            except Exception as e:
-                # If one tab fails (e.g. it's empty), skip it and keep going
-                continue
-                
+            except: continue # Skip silently if a specific tab fails
         return sent_dict
     except Exception as e:
-        st.error(f"Failed to sync database: {e}")
+        st.error(f"Failed to fetch portal records: {e}")
         return {}
 
 @st.cache_data(show_spinner=False)
@@ -221,17 +191,11 @@ def process_pod(pod_name):
     config = POD_CONFIGS[pod_name]
     progress_bar = st.progress(0, text=f"📥 Extracting {pod_name} tasks & evaluating dense routes...")
     try:
-        # ---> 1. DEFINE YOUR APPROVED TEAMS <---
         APPROVED_TEAMS = [
-            "a - escalation", 
-            "b - boosted campaigns", 
-            "b - local campaigns", 
-            "c - priority nationals", 
-            "cvs kiosk removal", 
-            "n - national campaigns"
+            "a - escalation", "b - boosted campaigns", "b - local campaigns", 
+            "c - priority nationals", "cvs kiosk removal", "n - national campaigns"
         ]
 
-        # ---> 2. MAP ONFLEET TEAMS & GRAB THEIR IDs <---
         teams_res = requests.get("https://onfleet.com/api/v2/teams", headers=headers).json()
         target_team_ids = []
         esc_team_ids = []
@@ -239,12 +203,8 @@ def process_pod(pod_name):
         if isinstance(teams_res, list):
             for team in teams_res:
                 t_name = str(team.get('name', '')).lower().strip()
-                
-                # If the team name matches one of your approved teams, save its ID
                 if any(appr in t_name for appr in APPROVED_TEAMS):
                     target_team_ids.append(team['id'])
-                    
-                # Track the Escalation team separately to ensure it gets the Star Pill
                 if 'escalation' in t_name:
                     esc_team_ids.append(team['id'])
 
@@ -256,10 +216,7 @@ def process_pod(pod_name):
             url = f"https://onfleet.com/api/v2/tasks/all?state=0&from={int(time.time()*1000)-(80*24*3600*1000)}&lastId={res['lastId']}" if res.get('lastId') else None
             progress_bar.progress(min(len(all_tasks_raw)/500, 0.4))
 
-        # ---> NEW: STRICT DEDUPLICATION TO PREVENT API OVERLAP <---
-        unique_tasks_dict = {}
-        for t in all_tasks_raw:
-            unique_tasks_dict[t['id']] = t
+        unique_tasks_dict = {t['id']: t for t in all_tasks_raw}
         all_tasks = list(unique_tasks_dict.values())
 
         pool = []
@@ -267,40 +224,31 @@ def process_pod(pod_name):
             container = t.get('container', {})
             c_type = str(container.get('type', '')).upper()
             
-            # ---> 3. NEW FILTER: Keep completely unassigned tasks, but filter specific teams <---
             if c_type == 'TEAM' and container.get('team') not in target_team_ids:
                 continue
 
             addr = t.get('destination', {}).get('address', {})
             stt = normalize_state(addr.get('state', ''))
-            
-            # Tag for the Star Pill (Team Check)
             is_esc = (c_type == 'TEAM' and container.get('team') in esc_team_ids)
             
-            # Tag for the Star Pill (Metadata Fallback Check)
             if not is_esc:
                 for m in (t.get('metadata') or []):
                     if 'escalation' in str(m.get('name', '')).lower() and str(m.get('value', '')).strip() in ['1', '1.0', 'true', 'yes']:
                         is_esc = True
                         break
             
-            # ---> NEW: Bulletproof Task Type Extraction <---
-            tt_val = ""
-            
-            if 'taskType' in t:
-                tt_val = str(t.get('taskType', '')).strip()
-            
+            tt_val = str(t.get('taskType', '')).strip()
             if not tt_val:
                 for m in (t.get('metadata') or []):
                     m_name = str(m.get('name', '')).lower().strip()
-                    if m_name == 'tasktype' or m_name == 'task type':
+                    if m_name in ['tasktype', 'task type']:
                         tt_val = str(m.get('value', '')).strip()
                         break
             
             if not tt_val and 'customFields' in t:
                 for cf in (t.get('customFields') or []):
                     cf_name = str(cf.get('name', '')).lower().strip()
-                    if cf_name == 'tasktype' or cf_name == 'task type':
+                    if cf_name in ['tasktype', 'task type']:
                         tt_val = str(cf.get('value', '')).strip()
                         break
                         
@@ -312,8 +260,7 @@ def process_pod(pod_name):
                     "id": t['id'], "city": addr.get('city', 'Unknown'), "state": stt,
                     "full": f"{addr.get('number','')} {addr.get('street','')}, {addr.get('city','')}, {stt}",
                     "lat": t['destination']['location'][1], "lon": t['destination']['location'][0],
-                    "escalated": is_esc,
-                    "task_type": tt_val
+                    "escalated": is_esc, "task_type": tt_val
                 })
         
         clusters = []
@@ -361,7 +308,6 @@ def process_pod(pod_name):
                 waypts = unique_locs[:25] 
                 
                 _, hrs, _ = get_gmaps(closest_ic_loc, waypts)
-                
                 pay = round(max(len(unique_locs) * 18.0, hrs * 25.0), 2)
                 avg = round(pay / len(unique_locs), 2) if len(unique_locs) > 0 else 0
                 return avg, len(unique_locs)
@@ -393,12 +339,10 @@ def process_pod(pod_name):
             
             pool = rem
             clusters.append({
-                "data": group, 
-                "center": [anc['lat'], anc['lon']], 
+                "data": group, "center": [anc['lat'], anc['lon']], 
                 "stops": len(set(x['full'] for x in group)), 
                 "city": anc['city'], "state": anc['state'],
-                "status": status,
-                "has_ic": has_ic,
+                "status": status, "has_ic": has_ic,
                 "esc_count": sum(1 for x in group if x.get('escalated'))
             })
             
@@ -408,7 +352,7 @@ def process_pod(pod_name):
         progress_bar.empty()
         st.error(f"Error initializing {pod_name}: {str(e)}")
 
-def render_dispatch(i, cluster, pod_name, is_sent=False):
+def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
     task_ids = [str(t['id']).strip() for t in cluster['data']]
     cluster_hash = hashlib.md5("".join(sorted(task_ids)).encode()).hexdigest()
     sync_key = f"sync_{cluster_hash}"
@@ -454,7 +398,6 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
         
         pill_str = " | ".join(pill_parts)
         loc_pills[addr] = f"({metrics['t_count']} Tasks) {pill_str}"
-        
         st.markdown(f"**{addr}** &nbsp;<span style='color: #633094; background-color: #f3e8ff; padding: 2px 6px; border-radius: 10px; font-weight: 800; font-size: 11px;'>{metrics['t_count']} Tasks</span>&nbsp; <span style='font-size: 13px; color: #475569;'>— {pill_str}</span>", unsafe_allow_html=True)
         
     st.divider()
@@ -501,9 +444,12 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
     st.text_area("Email Content Preview", sig, height=180, key=f"tx_{pod_name}_{i}_{cluster_hash}_{ic['Name']}_{pay}_{due}")
 
     col1, col2 = st.columns(2)
+    
     with col1:
-        if not real_id:
-            if st.button("☁️ Push & Generate Link", key=f"btn_s_{pod_name}_{i}_{cluster_hash}"):
+        # If it's a declined route, we ALLOW generating a new link (Fresh Start)
+        if not real_id or is_declined:
+            btn_text = "🔄 Generate New Link" if is_declined else "☁️ Push & Generate Link"
+            if st.button(btn_text, key=f"btn_s_{pod_name}_{i}_{cluster_hash}"):
                 home = ic['Location']
                 payload = {
                     "icn": ic['Name'], "ice": ic['Email'], "wo": wo_val, 
@@ -513,9 +459,13 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
                     "tCnt": len(task_ids),
                     "jobOnly": " | ".join([f"{a} {pill}" for a, pill in loc_pills.items()])
                 }
+                
                 res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
                 if res.get("success"):
-                    st.session_state[sync_key] = res.get("routeId")
+                    st.session_state[sync_key] = res.get("routeId") # Re-links to NEW Route ID
+                    if is_declined:
+                        st.session_state[f"status_override_{cluster_hash}"] = "sent"
+                        st.session_state[f"contractor_{cluster_hash}"] = ic['Name']
                     st.rerun()
         else:
             st.button("✅ Link Generated", disabled=True, key=f"dis_{pod_name}_{i}_{cluster_hash}")
@@ -524,24 +474,11 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
         if real_id:
             gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={ic['Email']}&su=Route Request: {ic['Name']}&body={requests.utils.quote(sig)}"
             
-            # This button triggers the move to Sent AND opens Gmail
             if st.button("🚀 OPEN IN GMAIL", key=f"gbtn_{cluster_hash}"):
-                # 1. Open Gmail first via HTML/JS component
-                st.components.v1.html(
-                    f"""
-                    <script>
-                        window.open('{gmail_url}', '_blank');
-                    </script>
-                    """,
-                    height=0,
-                )
-                
-                # 2. Mark as sent locally AND capture the exact time
                 now_ts = datetime.now().strftime('%m/%d %I:%M %p')
                 st.session_state[f"contractor_{cluster_hash}"] = ic['Name']
                 st.session_state[f"sent_ts_{cluster_hash}"] = now_ts
-                
-                # 3. Brief pause to ensure JS fires before the rerun kills the process
+                st.components.v1.html(f"<script>window.open('{gmail_url}', '_blank');</script>", height=0)
                 time.sleep(0.5)
                 st.rerun()
 
@@ -561,44 +498,34 @@ def run_pod_tab(pod_name):
         return
     
     sent_db = st.session_state.get("sent_db", {})
-    # Storage for our 5 categories
     ready, review, sent, accepted, declined = [], [], [], [], []
     
-    # We need to look at the 'sent_db' which pulls from your SAVED_ROUTES_GID
-    # We'll assume your portal updates a 'status' column in that sheet
-    # We need to look at the 'sent_db' which pulls from your SAVED_ROUTES_GID
     for c in cls:
         task_ids = [str(t['id']).strip() for t in c['data']]
         cluster_hash = hashlib.md5("".join(sorted(task_ids)).encode()).hexdigest()
         
-        # Look for a match in our multi-tab database SAFELY
         sheet_match = next((sent_db.get(tid) for tid in task_ids if tid in sent_db), None)
         local_sent_name = st.session_state.get(f"contractor_{cluster_hash}")
         local_ts = st.session_state.get(f"sent_ts_{cluster_hash}", "")
         
         if sheet_match or local_sent_name:
             c['contractor_name'] = sheet_match.get('name', 'Unknown') if sheet_match else local_sent_name
-            
-            # SAFELY grab the time, fallback to local_ts
             sheet_time = sheet_match.get('time', '') if sheet_match else ""
             c['route_ts'] = sheet_time if sheet_time else local_ts
             
-            # Determine status based on which sheet it was found in
-            current_status = sheet_match.get('status', 'sent') if sheet_match else "sent"
+            # Local override catches fresh reroutes instantly
+            current_status = st.session_state.get(f"status_override_{cluster_hash}")
+            if not current_status:
+                current_status = sheet_match.get('status', 'sent') if sheet_match else "sent"
             
-            if current_status == "accepted":
-                accepted.append(c)
-            elif current_status == "declined":
-                declined.append(c)
-            else:
-                sent.append(c)
+            if current_status == "accepted": accepted.append(c)
+            elif current_status == "declined": declined.append(c)
+            else: sent.append(c)
         else:
             if c.get('status') == "Ready": ready.append(c)
             else: review.append(c)
     
-    # ---> 6 Columns to comfortably fit Metrics <---
     c1, c2, c3, c4, c5, c6 = st.columns([1,1,1,1,1, 1.2])
-    
     total_tasks = sum(len(c['data']) for c in cls)
     total_stops = sum(c['stops'] for c in cls)
     
@@ -637,7 +564,7 @@ def run_pod_tab(pod_name):
         "📥 Dispatch Ready", 
         "✉️ Sent (Pending)", 
         "⚠️ Flagged",
-        " ", # Empty Spacer Tab
+        " ", 
         "✅ Accepted", 
         "❌ Declined",
         " "
@@ -654,8 +581,8 @@ def run_pod_tab(pod_name):
         if not sent: st.info("No pending routes sent.")
         for i, c in enumerate(sent):
             ic_name = c.get('contractor_name', 'Unknown')
-            esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
             ts_label = f" | {c.get('route_ts', '')}" if c.get('route_ts') else ""
+            esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
             with st.expander(f"✉️ Sent: {ic_name}{ts_label} | {c['city']}, {c['state']}{esc_pill}"): 
                 render_dispatch(i+500, c, pod_name, is_sent=True)
             
@@ -667,8 +594,7 @@ def run_pod_tab(pod_name):
             with st.expander(f"{status_emoji} {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
                 render_dispatch(i+1000, c, pod_name)
 
-    with gap:
-        st.write(" ")
+    with gap: st.write(" ")
 
     with t4:
         if not accepted: st.info("Waiting for portal acceptances...")
@@ -685,8 +611,9 @@ def run_pod_tab(pod_name):
             ic_name = c.get('contractor_name', 'Unknown')
             ts_label = f" | {c.get('route_ts', '')}" if c.get('route_ts') else ""
             with st.expander(f"❌ {ic_name}{ts_label} | {c['city']}, {c['state']}"):
-                st.error("Route declined by contractor. Requires re-dispatch.")
-                render_dispatch(i+3000, c, pod_name)
+                st.error("Route declined. Select a new contractor below to generate a fresh link.")
+                render_dispatch(i+3000, c, pod_name, is_declined=True)
+
 # --- START ---
 if "ic_df" not in st.session_state:
     try:
