@@ -540,8 +540,11 @@ def run_pod_tab(pod_name):
         return
     
     sent_db = st.session_state.get("sent_db", {})
-    ready, review, sent = [], [], []
+    # Storage for our 5 categories
+    ready, review, sent, accepted, declined = [], [], [], [], []
     
+    # We need to look at the 'sent_db' which pulls from your SAVED_ROUTES_GID
+    # We'll assume your portal updates a 'status' column in that sheet
     for c in cls:
         task_ids = [str(t['id']).strip() for t in c['data']]
         cluster_hash = hashlib.md5("".join(sorted(task_ids)).encode()).hexdigest()
@@ -549,9 +552,22 @@ def run_pod_tab(pod_name):
         matched_contractors = [sent_db[tid] for tid in task_ids if tid in sent_db]
         local_sent_name = st.session_state.get(f"contractor_{cluster_hash}")
         
+        # Check for Portal Status (This assumes your GAS Sheet has a way to track Accept/Decline)
+        # For now, we move them to 'Sent' first, then we can sub-filter
         if matched_contractors or local_sent_name:
             c['contractor_name'] = matched_contractors[0] if matched_contractors else local_sent_name
-            sent.append(c)
+            
+            # --- NEW: Portal Status Logic ---
+            # If your sheet tracking includes status, we sort here:
+            # (Note: This logic depends on your portal writing 'Accepted' or 'Declined' to the sheet)
+            status_check = str(c.get('portal_status', '')).lower() 
+            
+            if "accept" in status_check:
+                accepted.append(c)
+            elif "decline" in status_check:
+                declined.append(c)
+            else:
+                sent.append(c)
         else:
             if c.get('status') == "Ready": ready.append(c)
             else: review.append(c)
@@ -592,21 +608,51 @@ def run_pod_tab(pod_name):
     for c in review: folium.CircleMarker(c['center'], radius=10, color="#ef4444", fill=True, opacity=0.8).add_to(m)
     st_folium(m, width=1100, height=400, key=f"map_{pod_name}")
     
-    t_ready, t_out, t_rev = st.tabs(["Dispatch Ready", "Sent", "Flagged"])
+    # --- NEW: VISUAL SEPARATION & DUAL TAB GROUPS ---
+    st.markdown("---")
+    st.markdown("### 🚦 Dispatch Pipeline")
+    t_ready, t_out, t_rev = st.tabs(["Dispatch Ready", "Sent (Pending IC)", "Flagged"])
+    
     with t_ready:
         for i, c in enumerate(ready):
             esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-            with st.expander(f"📍 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): render_dispatch(i, c, pod_name)
+            with st.expander(f"📍 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
+                render_dispatch(i, c, pod_name)
+    
     with t_out:
         for i, c in enumerate(sent):
             ic_name = c.get('contractor_name', 'Unknown')
             esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-            with st.expander(f"✓ {ic_name} | {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): render_dispatch(i+500, c, pod_name, is_sent=True)
+            with st.expander(f"✉️ Sent: {ic_name} | {c['city']}, {c['state']}{esc_pill}"): 
+                render_dispatch(i+500, c, pod_name, is_sent=True)
+            
     with t_rev:
         for i, c in enumerate(review):
-            status_emoji = "🔴" if not c.get('has_ic') else "⚠" 
+            status_emoji = "🔴" if not c.get('has_ic') else "⚠️" 
             esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-            with st.expander(f"{status_emoji} {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): render_dispatch(i+1000, c, pod_name)
+            with st.expander(f"{status_emoji} {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
+                render_dispatch(i+1000, c, pod_name)
+
+    # Secondary Group for Portal Results
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 🏁 Portal Responses")
+    t_acc, t_dec = st.tabs(["✅ Accepted Routes", "❌ Declined Routes"])
+    
+    with t_acc:
+        if not accepted: 
+            st.info("No routes have been accepted yet.")
+        for i, c in enumerate(accepted):
+            with st.expander(f"✅ {c.get('contractor_name')} ACCEPTED | {c['city']}, {c['state']}"):
+                st.success(f"Route accepted by {c.get('contractor_name')}. Ready for Onfleet assignment.")
+                render_dispatch(i+2000, c, pod_name, is_sent=True)
+
+    with t_dec:
+        if not declined: 
+            st.info("No routes have been declined yet.")
+        for i, c in enumerate(declined):
+            with st.expander(f"❌ {c.get('contractor_name')} DECLINED | {c['city']}, {c['state']}"):
+                st.error("This route was declined. Re-dispatch required.")
+                render_dispatch(i+3000, c, pod_name)
 
 # --- START ---
 if "ic_df" not in st.session_state:
