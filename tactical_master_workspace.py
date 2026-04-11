@@ -215,12 +215,14 @@ def process_pod(pod_name):
             addr = t.get('destination', {}).get('address', {})
             stt = normalize_state(addr.get('state', ''))
             
-           # ---> CRITICAL FIX: Make the value check flexible for Onfleet decimals/numbers <---
-            is_esc = any(
-                "escalation" in str(m.get('name', '')).lower() and 
-                str(m.get('value', '')).strip().lower() in ["1", "1.0", "true", "yes"] 
-                for m in t.get('metadata', [])
-            )
+            # ---> BULLETPROOF ESCALATION CHECK <---
+            is_esc = False
+            for m in (t.get('metadata') or []):
+                m_name = str(m.get('name', '')).lower().strip()
+                m_val = str(m.get('value', '')).lower().strip()
+                if 'escalation' in m_name and m_val in ['1', '1.0', 'true', 'yes']:
+                    is_esc = True
+                    break
             
             if stt in config['states']:
                 pool.append({
