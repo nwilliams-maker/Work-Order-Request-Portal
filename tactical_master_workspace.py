@@ -573,6 +573,11 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         st.rerun()
             
 def run_pod_tab(pod_name):
+    # Grab the contractor database from session state
+    ic_df = st.session_state.get('ic_df', pd.DataFrame())
+    
+    # ... rest of your header code ...
+    
     # Standard Centered Header
     st.markdown(f"<h2 style='text-align:center;'>{pod_name} Dashboard</h2>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
@@ -728,27 +733,31 @@ def run_pod_tab(pod_name):
         if not ready: st.info("No tasks ready for dispatch.")
         for i, c in enumerate(ready):
             # --- 1. PRE-CALCULATE BADGES FOR SCAN-ABILITY ---
-            # We check the default (closest) IC to see if this route will be "Premium"
             badges = ""
-            if v_ics := ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy():
-                v_ics['d'] = v_ics.apply(lambda x: haversine(c['center'][0], c['center'][1], x['Lat'], x['Lng']), axis=1)
-                closest_ic = v_ics.sort_values('d').iloc[0]
+            if not ic_df.empty:
+                # Filter for valid contractors
+                v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy()
                 
-                # Check conditions
-                _, hrs, _ = get_gmaps(closest_ic['Location'], [t['full'] for t in c['data'][:25]])
-                est_pay = max(c['stops'] * 18.0, hrs * 25.0)
-                est_rate = est_pay / c['stops'] if c['stops'] > 0 else 0
-                
-                if est_rate >= 25.0: badges += " 💰"  # High Rate Badge
-                if closest_ic['d'] > 60: badges += " 📡" # Long Distance Badge
-                if est_rate >= 25.0 or closest_ic['d'] > 60: badges = " 🔒" + badges # Lock Badge
+                if not v_ics.empty:
+                    # Calculate distances
+                    v_ics['d'] = v_ics.apply(lambda x: haversine(c['center'][0], c['center'][1], x['Lat'], x['Lng']), axis=1)
+                    closest_ic = v_ics.sort_values('d').iloc[0]
+                    
+                    # Estimate pricing for badge logic
+                    _, hrs, _ = get_gmaps(closest_ic['Location'], [t['full'] for t in c['data'][:25]])
+                    est_pay = max(c['stops'] * 18.0, hrs * 25.0)
+                    est_rate = est_pay / c['stops'] if c['stops'] > 0 else 0
+                    
+                    # Apply Badges
+                    if est_rate >= 25.0: badges += " 💰"
+                    if closest_ic['d'] > 60: badges += " 📡"
+                    if est_rate >= 25.0 or closest_ic['d'] > 60: badges = " 🔒" + badges
 
             esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
             
-            # --- 2. RENDER EXPANDER WITH BADGES ---
+            # Render expander with the new badges
             with st.expander(f"{badges} 📍 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
                 render_dispatch(i, c, pod_name)
-
     with t2:
         if not sent: st.info("No pending routes sent.")
         for i, c in enumerate(sent):
