@@ -494,18 +494,23 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
                     "tCnt": len(task_ids),
                     "jobOnly": " | ".join([f"{a} {pill}" for a, pill in loc_pills.items()])
                 }
-                res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
+               res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
                 if res.get("success"):
                     st.session_state[sync_key] = res.get("routeId")
-                    # Add the contractor name to the cluster data so the 'Sent' filter catches it immediately
-                    cluster['contractor_name'] = ic['Name'] 
+                    # REMOVE the cluster['contractor_name'] line if it's here
                     st.rerun()
         else: st.button("✅ Link Generated", disabled=True, key=f"dis_{pod_name}_{i}_{cluster_hash}")
     
-    with col2:
+   with col2:
         if real_id:
             gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={ic['Email']}&su=Route Request: {ic['Name']}&body={requests.utils.quote(sig)}"
-            st.markdown(f'<a href="{gmail_url}" target="_blank" class="gmail-btn">🚀 OPEN IN GMAIL</a>', unsafe_allow_html=True)
+            
+            # This button triggers the move to Sent ONLY when clicked
+            if st.button("🚀 OPEN IN GMAIL", key=f"gbtn_{cluster_hash}"):
+                st.session_state[f"contractor_{cluster_hash}"] = ic['Name']
+                js = f"window.open('{gmail_url}')"
+                st.components.v1.html(f"<script>{js}</script>", height=0)
+                st.rerun()
 def run_pod_tab(pod_name):
     st.markdown(f"<h2 style='text-align:center;'>{pod_name} Dashboard</h2>", unsafe_allow_html=True)
     if f"clusters_{pod_name}" not in st.session_state:
@@ -526,10 +531,13 @@ def run_pod_tab(pod_name):
     
     for c in cls:
         task_ids = [str(t['id']).strip() for t in c['data']]
-        matched_contractors = [sent_db[tid] for tid in task_ids if tid in sent_db]
+        cluster_hash = hashlib.md5("".join(sorted(task_ids)).encode()).hexdigest()
         
-        if matched_contractors:
-            c['contractor_name'] = matched_contractors[0]
+        matched_contractors = [sent_db[tid] for tid in task_ids if tid in sent_db]
+        local_sent_name = st.session_state.get(f"contractor_{cluster_hash}")
+        
+        if matched_contractors or local_sent_name:
+            c['contractor_name'] = matched_contractors[0] if matched_contractors else local_sent_name
             sent.append(c)
         else:
             if c.get('status') == "Ready": ready.append(c)
