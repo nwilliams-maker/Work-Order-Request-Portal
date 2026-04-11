@@ -532,17 +532,19 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         st.rerun()
                 
 def run_pod_tab(pod_name):
-    # Standard Centered Header
+    # 1. Standard Centered Header
     st.markdown(f"<h2 style='text-align:center;'>{pod_name} Dashboard</h2>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Check if data exists for this pod
+    # 2. Check if data exists for this pod
+    # This must be indented exactly 4 spaces from the 'def' line
     if f"clusters_{pod_name}" not in st.session_state:
         if st.button(f"🚀 Initialize {pod_name} Data", key=f"init_{pod_name}"):
             process_pod(pod_name)
             st.rerun()
         return
     
+    # 3. Load cluster data
     cls = st.session_state[f"clusters_{pod_name}"]
     
     if st.button(f"🚀 Initialize {pod_name} Data", key=f"init_{pod_name}"):
