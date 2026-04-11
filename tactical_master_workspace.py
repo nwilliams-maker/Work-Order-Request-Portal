@@ -665,14 +665,9 @@ def run_pod_tab(pod_name):
         """, unsafe_allow_html=True)
 
     with c3:
-        # 1. Render the Button FIRST (Swapped to a text symbol ↻)
-        if st.button("↻", key=f"sync_track_{pod_name}"):
-            fetch_sent_records_from_sheet.clear()
-            st.rerun()
-
-        # 2. Render the Card SECOND (margin-top: -65px slides it UP underneath the button)
+        # 1. The Supercard Background (No negative margins, so it aligns perfectly with the other cards!)
         st.markdown(f"""
-            <div style='margin-top:-65px; background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); height: 110px; position:relative; z-index:1;'>
+            <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:0px; height: 110px;'>
                 <p style='margin:0 0 5px 0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase; text-align:center;'>Dispatched Tracking: {total_dispatched}</p>
                 <div style='display:flex; justify-content:space-between; gap:8px;'>
                     <div style='background:{TB_GREEN_FILL}; flex:1; padding:8px; border-radius:8px; text-align:center;'>
@@ -687,39 +682,44 @@ def run_pod_tab(pod_name):
             </div>
         """, unsafe_allow_html=True)
         
-        # 3. Universal CSS that targets the 3rd column specifically (No hidden tags needed!)
+        # 2. Render the Button (Uses the text symbol ↻)
+        if st.button("↻", key=f"sync_track_{pod_name}", help="SyncStatus"):
+            fetch_sent_records_from_sheet.clear()
+            st.rerun()
+
+        # 3. The CSS to make the icon tiny, dark, and perfectly placed
         st.markdown("""
             <style>
-            /* Push the button container to the right side of the column */
-            div[data-testid="column"]:nth-of-type(3) div.stButton {
-                display: flex !important;
-                justify-content: flex-end !important;
+            /* Make the 3rd column an anchor point */
+            div[data-testid="column"]:nth-of-type(3) {
                 position: relative !important;
-                z-index: 99 !important; /* Keeps button clickable above the card */
-                padding-right: 5px !important;
-                padding-top: 5px !important;
             }
 
-            /* Strip ALL backgrounds, borders, and colors from the button itself */
-            div[data-testid="column"]:nth-of-type(3) button {
+            /* Rip out all Streamlit backgrounds and float the text icon to the top right */
+            button[title="SyncStatus"] {
+                position: absolute !important;
+                top: 5px !important;
+                right: 8px !important;
                 background-color: transparent !important;
                 background: transparent !important;
                 border: none !important;
                 box-shadow: none !important;
-                color: #94a3b8 !important; /* Clean Grey Icon */
-                font-size: 24px !important;
-                font-weight: 800 !important;
-                width: 30px !important;
-                height: 30px !important;
+                color: #000000 !important; /* DARK TEXT */
+                font-size: 18px !important; /* Small enough to fit */
+                font-weight: 900 !important;
+                width: 20px !important;
+                height: 20px !important;
+                min-height: 0 !important;
                 padding: 0 !important;
                 line-height: 1 !important;
-                transition: transform 0.4s ease, color 0.2s ease !important;
+                z-index: 99 !important;
+                transition: transform 0.4s ease !important;
             }
 
-            /* Destroy the Streamlit grey focus box and add a spin effect */
-            div[data-testid="column"]:nth-of-type(3) button:hover,
-            div[data-testid="column"]:nth-of-type(3) button:focus,
-            div[data-testid="column"]:nth-of-type(3) button:active {
+            /* Spin effect on hover, stay transparent */
+            button[title="SyncStatus"]:hover,
+            button[title="SyncStatus"]:focus,
+            button[title="SyncStatus"]:active {
                 background-color: transparent !important;
                 background: transparent !important;
                 border: none !important;
@@ -727,10 +727,18 @@ def run_pod_tab(pod_name):
                 color: #000000 !important;
                 transform: rotate(180deg) !important;
             }
+
+            /* Crush the leftover button container so it doesn't push the map down */
+            div[data-testid="column"]:nth-of-type(3) div.stButton {
+                height: 0px !important;
+                min-height: 0px !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
             </style>
         """, unsafe_allow_html=True)
 
-    # --- MAP RENDERING (SAFELY RESTORED!) ---
+    # --- MAP RENDERING ---
     st.markdown("<br>", unsafe_allow_html=True)
     m = folium.Map(location=cls[0]['center'], zoom_start=6, tiles="cartodbpositron")
     for c in ready: folium.CircleMarker(c['center'], radius=10, color=TB_GREEN, fill=True, opacity=0.8).add_to(m)
