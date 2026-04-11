@@ -475,10 +475,11 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
     btn_label = "🚀 GENERATE LINK & OPEN GMAIL" if (not real_id or is_declined) else "🚀 OPEN IN GMAIL (RESEND)"
     
     if st.button(btn_label, type="primary", key=f"gbtn_{cluster_hash}"):
-        with st.spinner("Generating secure link & opening Gmail..."):
-            final_route_id = real_id
-            
-            # --- STEP A: GENERATE THE LINK (If missing or declined) ---
+        
+        final_route_id = real_id
+        
+        # --- STEP A: GENERATE THE LINK ---
+        with st.spinner("Generating secure link..."):
             if not final_route_id or is_declined:
                 home = ic['Location']
                 payload = {
@@ -498,32 +499,38 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
                     st.error("Failed to generate link from Google Sheets.")
                     st.stop()
 
-            # --- STEP B: BUILD THE REAL EMAIL ---
-            final_sig = (f"Work Order: {wo_val}\nContractor: {ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
-                   f"Metrics:\n- Stops: {cluster['stops']}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
-                   f"Authorize here:\n{PORTAL_BASE_URL}?route={final_route_id}&v2=true")
+        # --- STEP B: BUILD THE REAL EMAIL ---
+        final_sig = (f"Work Order: {wo_val}\nContractor: {ic['Name']}\nDue Date: {due.strftime('%A, %b %d, %Y')}\n\n"
+               f"Metrics:\n- Stops: {cluster['stops']}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${pay:.2f}\n\n"
+               f"Authorize here:\n{PORTAL_BASE_URL}?route={final_route_id}&v2=true")
+        
+        gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={ic['Email']}&su=Route Request: {ic['Name']}&body={requests.utils.quote(final_sig)}"
+        
+        # --- STEP C: UPDATE STATUS STATE ---
+        now_ts = datetime.now().strftime('%m/%d %I:%M %p')
+        st.session_state[f"sent_ts_{cluster_hash}"] = now_ts
+        st.session_state[f"contractor_{cluster_hash}"] = ic['Name']
+        st.session_state[f"status_override_{cluster_hash}"] = "sent" 
+        
+        # --- STEP D: POP GMAIL ---
+        # This tells the browser to open the tab immediately
+        st.components.v1.html(
+            f"""
+            <script>
+                window.open('{gmail_url}', '_blank');
+            </script>
+            """,
+            height=0,
+        )
+        
+        # --- STEP E: THE 20-SECOND VISUAL COUNTDOWN ---
+        timer_placeholder = st.empty()
+        for sec in range(20, 0, -1):
+            timer_placeholder.success(f"✅ Link Generated & Gmail Opened! Moving card to 'Sent' in {sec} seconds...")
+            time.sleep(1) # Wait exactly 1 second per loop
             
-            gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={ic['Email']}&su=Route Request: {ic['Name']}&body={requests.utils.quote(final_sig)}"
-            
-            # --- STEP C: UPDATE STATUS & MOVE CARD ---
-            now_ts = datetime.now().strftime('%m/%d %I:%M %p')
-            st.session_state[f"sent_ts_{cluster_hash}"] = now_ts
-            st.session_state[f"contractor_{cluster_hash}"] = ic['Name']
-            st.session_state[f"status_override_{cluster_hash}"] = "sent" # Instantly forces card to Sent tab
-            
-            # --- STEP D: POP GMAIL & REFRESH ---
-            st.components.v1.html(
-                f"""
-                <script>
-                    window.open('{gmail_url}', '_blank');
-                </script>
-                """,
-                height=0,
-            )
-            
-            # 1-second delay gives the browser time to open the popup before Streamlit clears the screen
-            time.sleep(1) 
-            st.rerun()
+        # Once the 20 seconds are up, refresh the app to officially move the card
+        st.rerun()
                 
 def run_pod_tab(pod_name):
     st.markdown(f"<h2 style='text-align:center;'>{pod_name} Dashboard</h2>", unsafe_allow_html=True)
