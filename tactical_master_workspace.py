@@ -17,7 +17,9 @@ PORTAL_BASE_URL = "https://nwilliams-maker.github.io/Route-Authorization-Portal/
 GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbynAIziubArSQ0hVGTvJMpk11a9yLP0kNcSmGpcY7GDNRT25Po5p92K3EDslx9VycKC/exec"
 IC_SHEET_URL = "https://docs.google.com/spreadsheets/d/1y6wX0x93iDc3gdK_nZKLD-2QcGkUHkcM75u90ffRO6k/edit#gid=0"
 SAVED_ROUTES_GID = "1477617688" 
-
+# --- ADD THESE TO YOUR CONFIG SECTION ---
+ACCEPTED_ROUTES_GID = "934075207" 
+DECLINED_ROUTES_GID = "600909788"
 # Terraboost Media Brand Palette
 TB_PURPLE = "#633094"
 TB_GREEN = "#76bc21"
@@ -148,28 +150,39 @@ def normalize_state(st_str):
 
 def fetch_sent_records_from_sheet():
     try:
-        url = f"{IC_SHEET_URL.split('/edit')[0]}/export?format=csv&gid={SAVED_ROUTES_GID}"
-        df = pd.read_csv(url)
-        df.columns = [str(c).strip().lower() for c in df.columns]
+        base_url = f"{IC_SHEET_URL.split('/edit')[0]}/export?format=csv&gid="
+        
+        # 1. Fetch all three tabs
+        sheets_to_fetch = [
+            (SAVED_ROUTES_GID, "sent"),
+            (ACCEPTED_ROUTES_GID, "accepted"),
+            (DECLINED_ROUTES_GID, "declined")
+        ]
         
         sent_dict = {}
-        # Find the column that tracks the portal response
-        status_col = next((c for c in df.columns if 'status' in c), None)
         
-        if 'taskids' in df.columns:
-            for _, row in df.iterrows():
-                tids = str(row.get('taskids', '')).replace('|', ',').split(',')
-                c_name = row.get('contractor', row.get('icn', 'Unknown Contractor'))
-                # If no status col exists yet, we assume it's just 'Sent'
-                c_status = str(row.get(status_col, 'Sent')).strip() if status_col else 'Sent'
-                
-                for tid in tids:
-                    if tid.strip():
-                        sent_dict[tid.strip()] = {"name": c_name, "status": c_status}
+        for gid, status_label in sheets_to_fetch:
+            df = pd.read_csv(base_url + gid)
+            df.columns = [str(c).strip().lower() for c in df.columns]
+            
+            # Use 'json payload' or 'taskids' to find the IDs
+            # Your GAS script uses 'json payload'
+            if 'json payload' in df.columns:
+                for _, row in df.iterrows():
+                    try:
+                        p = json.loads(row['json payload'])
+                        tids = str(p.get('taskIds', '')).replace('|', ',').split(',')
+                        c_name = row.get('contractor', 'Unknown Contractor')
                         
+                        for tid in tids:
+                            tid = tid.strip()
+                            if tid:
+                                sent_dict[tid] = {"name": c_name, "status": status_label}
+                    except: continue
+                    
         return sent_dict
     except Exception as e:
-        st.error(f"Failed to fetch sent routes. Google Sheets Error: {e}")
+        st.error(f"Failed to fetch portal records: {e}")
         return {}
 
 @st.cache_data(show_spinner=False)
@@ -543,19 +556,19 @@ def run_pod_tab(pod_name):
         task_ids = [str(t['id']).strip() for t in c['data']]
         cluster_hash = hashlib.md5("".join(sorted(task_ids)).encode()).hexdigest()
         
-        # Check sheet data
+        # Look for a match in our multi-tab database
         sheet_match = next((sent_db[tid] for tid in task_ids if tid in sent_db), None)
         local_sent_name = st.session_state.get(f"contractor_{cluster_hash}")
         
         if sheet_match or local_sent_name:
             c['contractor_name'] = sheet_match['name'] if sheet_match else local_sent_name
             
-            # Logic: Sheet status beats local session status
-            current_status = sheet_match['status'].lower() if sheet_match else "sent"
+            # Determine status based on which sheet it was found in
+            current_status = sheet_match['status'] if sheet_match else "sent"
             
-            if "accept" in current_status:
+            if current_status == "accepted":
                 accepted.append(c)
-            elif "decline" in current_status:
+            elif current_status == "declined":
                 declined.append(c)
             else:
                 sent.append(c)
