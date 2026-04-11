@@ -545,7 +545,7 @@ def run_pod_tab(pod_name):
     
     cls = st.session_state[f"clusters_{pod_name}"]
     
-        if st.button(f"🚀 Initialize {pod_name} Data", key=f"init_{pod_name}"):
+    if st.button(f"🚀 Initialize {pod_name} Data", key=f"init_{pod_name}"):
             process_pod(pod_name)
             st.rerun()
         return
