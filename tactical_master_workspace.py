@@ -418,19 +418,24 @@ def render_dispatch(i, cluster, pod_name, is_sent=False):
             loc_data[addr]['other'] += 1
 
     # Render the perfectly formatted Pills!
+    # Render the perfectly formatted Pills!
     loc_pills = {} 
     for addr, counts in loc_data.items():
         pill_parts = []
         if counts['new'] > 0: pill_parts.append(f"🆕 {counts['new']} New Ad")
         if counts['cont'] > 0: pill_parts.append(f"🔄 {counts['cont']} Continuity")
         if counts['def'] > 0: pill_parts.append(f"⚪ {counts['def']} Default")
+        if counts['other'] > 0: pill_parts.append(f"📦 {counts['other']} Other")
         
-        # Build the string without brackets
-        pill_str = " | ".join(pill_parts) if pill_parts else f"{counts['total']} Tasks"
-        loc_pills[addr] = pill_str
+        # Build the clean string without brackets for the Google Sheet payload
+        pill_str = " | ".join(pill_parts)
+        loc_pills[addr] = f"({counts['total']} Tasks) {pill_str}"
         
-        # Display as normal text (REMOVED the backticks so it doesn't get the dark green code styling)
-        st.markdown(f"**{addr}** {pill_str}")
+        # Display the UI with a bold Terraboost Purple badge for the Total Count
+        st.markdown(
+            f"**{addr}** &nbsp;<span style='color: #633094; background-color: #f3e8ff; padding: 2px 8px; border-radius: 10px; font-weight: 800; font-size: 14px;'>{counts['total']} Tasks</span>&nbsp; — {pill_str}", 
+            unsafe_allow_html=True
+        )
         
     st.divider()
     ic_df = st.session_state.get('ic_df', pd.DataFrame())
