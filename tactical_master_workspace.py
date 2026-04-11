@@ -665,15 +665,16 @@ def run_pod_tab(pod_name):
         """, unsafe_allow_html=True)
 
     with c3:
-        # 1. The Header Row (Pushes the icon to the far right)
-        header_col1, header_col2 = st.columns([0.8, 0.2])
-        with header_col2:
-            # We use tertiary to remove the border/background naturally
-            if st.button("↻", type="tertiary", key=f"sync_track_{pod_name}", help="Sync Status"):
+        # 1. Create a header row specifically for the Sync Icon
+        # This pushes the button to the far right without using absolute positioning
+        sync_cols = st.columns([0.85, 0.15])
+        with sync_cols[1]:
+            # type="tertiary" is the magic key—it natively makes the button transparent
+            if st.button("↻", type="tertiary", key=f"sync_track_{pod_name}", help="Force Sync Portal"):
                 fetch_sent_records_from_sheet.clear()
                 st.rerun()
-        
-        # 2. The Supercard Background (No hacks, just a clean card)
+
+        # 2. The Supercard Background (Clean, stable, and perfectly aligned)
         st.markdown(f"""
             <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); height: 110px;'>
                 <p style='margin:0 0 5px 0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase; text-align:center;'>Dispatched Tracking: {total_dispatched}</p>
@@ -690,34 +691,40 @@ def run_pod_tab(pod_name):
             </div>
         """, unsafe_allow_html=True)
 
-        # 3. Minimal CSS just to tighten the gap and color the icon
+        # 3. Aggressive CSS for the icon only
         st.markdown(f"""
             <style>
-            /* Tighten the space between the button row and the card */
-            div[data-testid="column"]:nth-of-type(3) div[data-testid="stVerticalBlock"] {{
-                gap: 0rem !important;
-            }}
-            
-            /* Make the icon dark and clean */
-            button[title="Sync Status"] {{
+            /* This ensures the icon is tiny, black, and has NO grey box */
+            div[data-testid="column"]:nth-of-type(3) button[kind="tertiary"] {{
                 color: #000000 !important;
-                font-size: 20px !important;
-                font-weight: 900 !important;
-                background: transparent !important;
+                background-color: transparent !important;
                 border: none !important;
+                box-shadow: none !important;
+                font-size: 18px !important;
+                font-weight: 900 !important;
+                padding: 0px !important;
+                min-height: 0px !important;
+                height: 25px !important;
+                width: 25px !important;
                 float: right !important;
-                padding-bottom: 5px !important;
+                margin-top: -5px !important;
             }}
             
-            button[title="Sync Status"]:hover {{
+            /* Spin effect on hover */
+            div[data-testid="column"]:nth-of-type(3) button[kind="tertiary"]:hover {{
                 transform: rotate(180deg) !important;
                 transition: transform 0.4s ease !important;
-                background: transparent !important;
+                color: #76bc21 !important; /* TB_GREEN on hover */
+            }}
+
+            /* Shrink the vertical gap between the button and the card */
+            div[data-testid="column"]:nth-of-type(3) div[data-testid="stVerticalBlock"] {{
+                gap: 0rem !important;
             }}
             </style>
         """, unsafe_allow_html=True)
 
-    # --- MAP RENDERING (Make sure this is right after the c3 block) ---
+    # --- MAP RENDERING (STAYS RIGHT BELOW) ---
     st.markdown("<br>", unsafe_allow_html=True)
     m = folium.Map(location=cls[0]['center'], zoom_start=6, tiles="cartodbpositron")
     for c in ready: folium.CircleMarker(c['center'], radius=10, color=TB_GREEN, fill=True, opacity=0.8).add_to(m)
