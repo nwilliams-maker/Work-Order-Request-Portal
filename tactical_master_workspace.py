@@ -463,9 +463,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
                 res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
                 if res.get("success"):
                     st.session_state[sync_key] = res.get("routeId") # Re-links to NEW Route ID
-                    if is_declined:
-                        st.session_state[f"status_override_{cluster_hash}"] = "sent"
-                        st.session_state[f"contractor_{cluster_hash}"] = ic['Name']
+                    # Removed the "move to sent" override from here so it waits for you.
                     st.rerun()
         else:
             st.button("✅ Link Generated", disabled=True, key=f"dis_{pod_name}_{i}_{cluster_hash}")
@@ -478,8 +476,12 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
                 now_ts = datetime.now().strftime('%m/%d %I:%M %p')
                 st.session_state[f"contractor_{cluster_hash}"] = ic['Name']
                 st.session_state[f"sent_ts_{cluster_hash}"] = now_ts
+                
+                # --- THIS MOVES IT TO THE SENT TAB ONLY AFTER GMAIL IS CLICKED ---
+                st.session_state[f"status_override_{cluster_hash}"] = "sent"
+                
                 st.components.v1.html(f"<script>window.open('{gmail_url}', '_blank');</script>", height=0)
-                time.sleep(0.5)
+                time.sleep(1.0)
                 st.rerun()
 
 def run_pod_tab(pod_name):
