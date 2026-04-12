@@ -857,8 +857,7 @@ def run_pod_tab(pod_name):
                         render_dispatch(i+500, c, pod_name, is_sent=True)
                         
                 with btn_col:
-                    # Adjusted top margin to match the new slimmer button
-                    st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
+                    # 2. Removed the spacer so the button aligns completely flush with the top of the card
                     if st.button("↩️ Revoke", key=f"quick_rev_{cluster_hash}", help="Pull this route back to Dispatch", use_container_width=True):
                         # Log the previous contractor
                         hist = st.session_state.get(f"history_{cluster_hash}", [])
