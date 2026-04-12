@@ -1060,7 +1060,7 @@ with tabs[0]:
                     if any(tid in current_sent_db for tid in task_ids) or st.session_state.get(f"route_state_{cluster_hash}") == "email_sent":
                         sent_count += 1
                 
-                # Metrics HTML (Flushed Left)
+                # Metrics HTML (Flushed Left to prevent markdown code blocks)
                 card_content = f"""
 <p style='margin: 10px 0 0 0; font-size: 26px; font-weight: 800; color: {colors['text']};'>{sent_count} / {total_routes}</p>
 <p style='margin: -5px 0 10px 0; font-size: 11px; font-weight: 700; color: {colors['text']}; opacity: 0.6; text-transform: uppercase;'>Routes Sent</p>
@@ -1096,3 +1096,7 @@ with tabs[0]:
     # --- 4. MASTER MAP ---
     st.markdown("<br>### 🗺️ Master Route Map", unsafe_allow_html=True)
     st_folium(global_map, height=500, use_container_width=True, key="global_master_map")
+
+# --- INDIVIDUAL POD TABS ---
+for i, pod in enumerate(["Blue", "Green", "Orange", "Purple", "Red"], 1):
+    with tabs[i]: run_pod_tab(pod)
