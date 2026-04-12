@@ -855,7 +855,8 @@ def run_pod_tab(pod_name):
                 declined.append(c)
             else:
                 ready.append(c)
-        elif sheet_match and not is_reverted:
+        # --- NEW PRIORITY: LIVE DATABASE OVERRIDES LOCAL STATE ---
+        if sheet_match and not is_reverted:
             raw_status = sheet_match.get('status')
             if raw_status == 'declined':
                 declined.append(c)
@@ -863,6 +864,14 @@ def run_pod_tab(pod_name):
                 accepted.append(c)
             else:
                 sent.append(c)
+        elif route_state == "email_sent" and not is_reverted:
+            sent.append(c)
+        elif route_state == "link_generated" and not is_reverted:
+            orig = st.session_state.get(f"orig_status_{cluster_hash}")
+            if orig == "declined":
+                declined.append(c)
+            else:
+                ready.append(c)
         else:
             # Falls back into standard Dispatching
             if c.get('status') == 'Ready': 
@@ -1204,7 +1213,8 @@ with tabs[0]:
                         orig = st.session_state.get(f"orig_status_{cluster_hash}")
                         if orig == "declined":
                             declined.append(c)
-                    elif sheet_match and not is_reverted:
+                    # --- NEW PRIORITY: LIVE DATABASE OVERRIDES LOCAL STATE ---
+                    if sheet_match and not is_reverted:
                         raw_status = sheet_match.get('status')
                         if raw_status == 'declined':
                             declined.append(c)
@@ -1212,6 +1222,12 @@ with tabs[0]:
                             accepted.append(c)
                         else:
                             sent.append(c)
+                    elif route_state == "email_sent" and not is_reverted:
+                        sent.append(c)
+                    elif route_state == "link_generated" and not is_reverted:
+                        orig = st.session_state.get(f"orig_status_{cluster_hash}")
+                        if orig == "declined":
+                            declined.append(c)
                 
                 # Combine Sent (Pending), Accepted, and Declined for the true Total Sent out
                 true_sent_count = len(sent) + len(accepted) + len(declined)
