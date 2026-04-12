@@ -216,39 +216,47 @@ button[kind="secondary"] {{
     transition: all 0.2s ease !important;
 }}
 
-/* EXPANDER & LAYOUT TIGHTENING */
+/* =========================================
+   EXPANDER & LAYOUT TIGHTENING
+   ========================================= */
+
+/* FLUSH BUTTON MECHANICS (The Revoke/Re-Route Buttons) */
+/* Increased specificity to ensure it overrides the 42px generic secondary button height */
+div[data-testid="stColumn"]:has(.flush-hook) button[kind="secondary"],
 div[data-testid="stColumn"]:has(.flush-hook) button {{
     margin-left: -1rem !important;
     width: calc(100% + 1rem) !important;
     border-top-left-radius: 0px !important;
     border-bottom-left-radius: 0px !important;
-    height: 45px !important; /* Matches left column height */
+    height: 45px !important; /* Perfect height match for left column */
 }}
 
+/* FLUSH EXPANDER MECHANICS (Squaring the right side) */
 div[data-testid="stColumn"]:has(.expander-hook) div[data-testid="stExpander"] {{
     border-top-right-radius: 0px !important;
     border-bottom-right-radius: 0px !important;
+    border-right: none !important; /* Prevents double-thick border where they touch */
 }}
 
-/* Main Expander Container */
+/* MAIN EXPANDER CONTAINER */
 div[data-testid="stExpander"] {{ 
     border: 1px solid #cbd5e1 !important; 
     border-radius: 10px !important; 
     box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
-    margin-bottom: 0px !important;
+    margin-bottom: 0px !important; /* Kills internal margin */
     background-color: #ffffff !important;
     overflow: hidden !important;
 }}
 
 /* 🌟 AGGRESSIVE VERTICAL GAP SQUASH */
-/* Streamlit wraps columns in a horizontal block. We target that block and pull it up. */
+/* Kills the gap between horizontal blocks */
 div[data-testid="stHorizontalBlock"]:has(.expander-hook) {{
     margin-bottom: -1rem !important;
     padding-bottom: 0px !important;
 }}
 
-/* Ensure the parent container doesn't force a gap either */
-div.element-container:has(> div[data-testid="stHorizontalBlock"]:has(.expander-hook)) {{
+/* Kills the gap from the parent container */
+div.element-container:has(div[data-testid="stHorizontalBlock"]:has(.expander-hook)) {{
     margin-bottom: -1rem !important;
 }}
 
