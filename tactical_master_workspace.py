@@ -953,9 +953,23 @@ if "ic_df" not in st.session_state:
         st.session_state.ic_df = pd.read_csv(url)
     except: st.error("Database connection failed.")
 
-st.markdown("<h1>Dispatch Command Center</h1>", unsafe_allow_html=True)
+# --- TOP HEADER & REFRESH ROW ---
+col_title, col_ref = st.columns([4, 1])
+
+with col_title:
+    st.markdown("<h1 style='margin-top: -10px;'>Dispatch Command Center</h1>", unsafe_allow_html=True)
+
+with col_ref:
+    # Adding a bit of padding to line up the button with the text
+    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    if st.button("🔄 Refresh Data", use_container_width=True, help="Wipe cache and force fresh pull from Sheets/Onfleet"):
+        st.cache_data.clear()  # Wipes the 15s and 600s caches instantly
+        st.rerun()
+
+# Define tabs once for the entire app
 tabs = st.tabs(["Global", "Blue", "Green", "Orange", "Purple", "Red"])
 
+# --- TAB 0: GLOBAL CONTROL ---
 with tabs[0]:
     st.markdown("<h2 style='text-align:center;'>🌍 Global Command Overview</h2>", unsafe_allow_html=True)
     
