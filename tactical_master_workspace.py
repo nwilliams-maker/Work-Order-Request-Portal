@@ -66,27 +66,29 @@ st.markdown(f"""
 
 h1, h2, h3, h4, h5, h6 {{ color: #633094 !important; font-weight: 800 !important; }}
 
-/* Modern Condensed Refresh Button */
+/* Modern Condensed Refresh Button - Far Right Alignment */
+div.refresh-btn-container {{
+    display: flex;
+    justify-content: flex-end; /* Shoves content to the far right */
+    width: 100%;
+}}
+
 div.refresh-btn-container > div > button {{
-    height: 32px !important;
-    padding: 0 15px !important;
-    font-size: 13px !important;
-    line-height: 1 !important;
-    border-radius: 30px !important; /* Pill Shape */
-    border: 1.5px solid #633094 !important;
+    height: 28px !important; /* Even more condensed */
+    padding: 0 12px !important;
+    font-size: 12px !important;
+    border-radius: 20px !important;
+    border: 1.2px solid #633094 !important;
     background-color: transparent !important;
     color: #633094 !important;
     font-weight: 700 !important;
-    transition: all 0.3s ease !important;
-    width: auto !important;
-    float: right; /* Aligns it to the right of the column */
+    transition: all 0.2s ease-in-out !important;
 }}
 
 div.refresh-btn-container > div > button:hover {{
     background-color: #633094 !important;
     color: white !important;
-    box-shadow: 0 4px 10px rgba(99, 48, 148, 0.2) !important;
-    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(99, 48, 148, 0.3) !important;
 }}
 
 /* GLOBAL TABS STYLING */
@@ -977,14 +979,14 @@ if "ic_df" not in st.session_state:
     except: st.error("Database connection failed.")
 
 # --- TOP HEADER & REFRESH ROW ---
-col_title, col_ref = st.columns([4, 1])
+col_title, col_ref = st.columns([6, 1])
 
 with col_title:
     st.markdown(f"<h1 style='margin-top: -10px;'>Terraboost Media: Operations Dispatch Command Center</h1>", unsafe_allow_html=True)
 
 with col_ref:
-    # Increased margin slightly to 22px to perfectly center with the purple title
-    st.markdown("<div style='margin-top: 22px;' class='refresh-btn-container'>", unsafe_allow_html=True)
+    # Use 26px to align the smaller button with the bottom of the text
+    st.markdown("<div style='margin-top: 26px;' class='refresh-btn-container'>", unsafe_allow_html=True)
     if st.button("🔄 Refresh", key="top_ref_btn"):
         st.cache_data.clear()
         st.rerun()
