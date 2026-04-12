@@ -718,18 +718,19 @@ def run_pod_tab(pod_name):
     st_folium(m, height=400, use_container_width=True, key=f"map_{pod_name}")
     
     # --- ICON KEY (LEGEND) ---
+    # (Pushed to the far left so Streamlit doesn't turn it into a code block)
     st.markdown("""
-        <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; background: #ffffff; padding: 12px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: -10px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; align-self: center; margin-right: 10px;">Route Key:</div>
-            <div style="font-size: 13px; cursor: help;" title="Route is within distance limits (<60mi) and standard rate (<$25/stop).">📍 Ready</div>
-            <div style="font-size: 13px; cursor: help;" title="Route is frozen and requires manual authorization before sending.">🔒 Action Required</div>
-            <div style="font-size: 13px; cursor: help;" title="The calculated price per stop is $25.00 or higher.">💰 High Rate</div>
-            <div style="font-size: 13px; cursor: help;" title="The closest contractor is more than 60 miles away.">📡 Long Distance</div>
-            <div style="font-size: 13px; cursor: help;" title="Route was flagged for review (e.g., low density).">🔴 Flagged</div>
-            <div style="font-size: 13px; cursor: help;" title="Priority: Contains escalated tasks.">⭐ Escalated</div>
-            <div style="font-size: 13px; cursor: help;" title="Route request has been sent to the contractor.">✉️ Sent</div>
-        </div>
-    """, unsafe_allow_html=True)
+<div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; background: #ffffff; padding: 12px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: -10px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+    <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; align-self: center; margin-right: 10px;">Route Key:</div>
+    <div style="font-size: 13px; cursor: help;" title="Route is within distance limits (<60mi) and standard rate (<$25/stop).">📍 Ready</div>
+    <div style="font-size: 13px; cursor: help;" title="Route is frozen and requires manual authorization before sending.">🔒 Action Required</div>
+    <div style="font-size: 13px; cursor: help;" title="The calculated price per stop is $25.00 or higher.">💰 High Rate</div>
+    <div style="font-size: 13px; cursor: help;" title="The closest contractor is more than 60 miles away.">📡 Long Distance</div>
+    <div style="font-size: 13px; cursor: help;" title="Route was flagged for review (e.g., low density).">🔴 Flagged</div>
+    <div style="font-size: 13px; cursor: help;" title="Priority: Contains escalated tasks.">⭐ Escalated</div>
+    <div style="font-size: 13px; cursor: help;" title="Route request has been sent to the contractor.">✉️ Sent</div>
+</div>
+""", unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -738,9 +739,9 @@ def run_pod_tab(pod_name):
 
     with col_left:
         # ==========================================
-        # SECTION 1: DISPATCH (LEFT SIDE)
+        # SECTION 1: DISPATCH (LEFT SIDE - CENTERED)
         # ==========================================
-        st.markdown("<h3 style='color: #000000; margin-bottom: 5px;'>🚀 Dispatch</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color: #000000; margin-bottom: 5px; text-align: center;'>🚀 Dispatch</h3>", unsafe_allow_html=True)
         t_ready, t_flagged = st.tabs(["📥 Ready", "⚠️ Flagged"])
 
         with t_ready:
@@ -774,9 +775,9 @@ def run_pod_tab(pod_name):
 
     with col_right:
         # ==========================================
-        # SECTION 2: AWAITING CONFIRMATION (RIGHT SIDE)
+        # SECTION 2: AWAITING CONFIRMATION (RIGHT SIDE - CENTERED)
         # ==========================================
-        st.markdown("<h3 style='color: #000000; margin-bottom: 5px;'>⏳ Awaiting Confirmation</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color: #000000; margin-bottom: 5px; text-align: center;'>⏳ Awaiting Confirmation</h3>", unsafe_allow_html=True)
         t_sent, t_acc, t_dec = st.tabs(["✉️ Sent (Pending)", "✅ Accepted", "❌ Declined"])
 
         with t_sent:
