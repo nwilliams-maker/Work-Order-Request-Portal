@@ -598,25 +598,49 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
     
     st.text_area("Email Content Preview", height=180, key=tx_key, disabled=not is_unlocked)
 
-    # --- 7. BUTTON LAYOUT (WITH REVOKE FEATURE) ---
+    # --- 7. BUTTON LAYOUT ---
     btn_label = "🚀 GENERATE LINK & OPEN GMAIL" if (not real_id or is_declined) else "🚀 OPEN IN GMAIL (RESEND)"
 
-    # If the route is sitting in the "Sent" tab, split the layout to show the Revoke button
-    if is_sent and not is_declined:
-        c1, c2 = st.columns([3, 1])
-        target_col = c1
-        with c2:
-            if st.button("↩️ Revoke Route", key=f"rev_{cluster_hash}", use_container_width=True):
-                # Log the contractor and time
-                hist = st.session_state.get(f"history_{cluster_hash}", [])
-                hist.append(f"{cluster.get('contractor_name', 'Unknown')} ({datetime.now().strftime('%m/%d')})")
-                st.session_state[f"history_{cluster_hash}"] = hist
-                
-                # Flag as reverted and destroy the old link
-                st.session_state[f"reverted_{cluster_hash}"] = True
-                if sync_key in st.session_state:
-                    del st.session_state[sync_key]
-                st.rerun()
+    # Removed the inner Revoke button and column split, allowing the main button to use full width
+    if st.button(btn_label, type="primary", key=f"gbtn_{cluster_hash}", disabled=not is_unlocked, use_container_width=True):
+        final_route_id = real_id
+        with st.spinner("Generating secure link..."):
+            if not final_route_id or is_declined:
+                home = ic['Location']
+                payload = {
+                    "icn": ic['Name'], "ice": ic['Email'], "wo": wo_val, 
+                    "due": str(due), "comp": final_pay, "lCnt": cluster['stops'], "mi": mi, "time": t_str, "phone": str(ic['Phone']),
+                    "locs": " | ".join([home] + list(stop_metrics.keys()) + [home]),
+                    "taskIds": ",".join(task_ids),
+                    "tCnt": len(task_ids),
+                    "jobOnly": " | ".join([f"{a} {pill}" for a, pill in loc_pills.items()])
+                }
+                res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
+                if res.get("success"):
+                    final_route_id = res.get("routeId")
+                    st.session_state[sync_key] = final_route_id
+                else:
+                    st.error("Failed to generate link."); st.stop()
+
+        # Build final signature with final_route_id
+        final_sig = sig_preview.replace("LINK_PENDING", final_route_id)
+        gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={ic['Email']}&su=Route Request: {ic['Name']}&body={requests.utils.quote(final_sig)}"
+        
+        st.components.v1.html(f"<script>window.open('{gmail_url}', '_blank');</script>", height=0)
+        
+        # State updates for UI
+        now_ts = datetime.now().strftime('%m/%d %I:%M %p')
+        st.session_state[f"sent_ts_{cluster_hash}"] = now_ts
+        st.session_state[f"contractor_{cluster_hash}"] = ic['Name']
+        st.session_state[f"route_state_{cluster_hash}"] = "email_sent"
+        st.session_state[f"reverted_{cluster_hash}"] = False # Clear the revert flag since it's sent again
+        
+        timer_placeholder = st.empty()
+        for sec in range(10, 0, -1):
+            timer_placeholder.success(f"✅ Link Generated! Moving card in {sec}s...")
+            time.sleep(1)
+        st.rerun()
+        
     else:
         target_col = st.container()
 
