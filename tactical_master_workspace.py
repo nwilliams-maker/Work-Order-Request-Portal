@@ -949,15 +949,6 @@ def run_pod_tab(pod_name):
                             del st.session_state[sync_key]
                         st.rerun()
                         
-# --- DEVELOPER OVERRIDE ---
-# Adding 'key' automatically saves this to st.session_state
-st.sidebar.checkbox("🔓 Developer Mode", key="dev_mode_state", help="Enable manual overrides for testing.")
-# --- START ---
-if "ic_df" not in st.session_state:
-    try:
-        url = f"{IC_SHEET_URL.split('/edit')[0]}/export?format=csv&gid=0"
-        st.session_state.ic_df = pd.read_csv(url)
-    except: st.error("Database connection failed.")
 
 # --- TOP HEADER & REFRESH ROW ---
 col_title, col_ref = st.columns([4, 1])
