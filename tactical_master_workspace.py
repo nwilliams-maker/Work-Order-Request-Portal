@@ -766,26 +766,11 @@ def run_pod_tab(pod_name):
     total_routes = len(cls)
     total_dispatched = len(sent) + len(accepted) + len(declined)
 
-    c1, c2, c3 = st.columns([1, 1.5, 1.5])
+    # We swap the widths so the wider 'Routes' card fits on the left
+    c1, c2, c3 = st.columns([1.5, 1, 1.5])
 
     with c1:
-        st.markdown(f"""
-            <div style='background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:15px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:20px; height: 110px;'>
-                <div style='display:flex; justify-content:space-around; text-align:center; height:100%; align-items:center;'>
-                    <div>
-                        <p style='margin:0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>Total Tasks</p>
-                        <p style='margin:0; font-size:26px; font-weight:800; color:#000000;'>{total_tasks}</p>
-                    </div>
-                    <div style='border-left: 2px solid #cbd5e1; height: 40px;'></div>
-                    <div>
-                        <p style='margin:0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>Total Stops</p>
-                        <p style='margin:0; font-size:26px; font-weight:800; color:#000000;'>{total_stops}</p>
-                    </div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    with c2:
+        # --- NOW IN C1: TOTAL ROUTES (Ready / Sent / Flagged) ---
         st.markdown(f"""
             <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:20px; height: 110px;'>
                 <p style='margin:0 0 5px 0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase; text-align:center;'>Total Routes: {total_routes}</p>
@@ -806,7 +791,26 @@ def run_pod_tab(pod_name):
             </div>
         """, unsafe_allow_html=True)
 
+    with c2:
+        # --- NOW IN C2: TOTAL TASKS & STOPS ---
+        st.markdown(f"""
+            <div style='background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:15px; box-shadow:0 2px 4px rgba(0,0,0,0.05); margin-bottom:20px; height: 110px;'>
+                <div style='display:flex; justify-content:space-around; text-align:center; height:100%; align-items:center;'>
+                    <div>
+                        <p style='margin:0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>Total Tasks</p>
+                        <p style='margin:0; font-size:26px; font-weight:800; color:#000000;'>{total_tasks}</p>
+                    </div>
+                    <div style='border-left: 2px solid #cbd5e1; height: 40px;'></div>
+                    <div>
+                        <p style='margin:0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase;'>Total Stops</p>
+                        <p style='margin:0; font-size:26px; font-weight:800; color:#000000;'>{total_stops}</p>
+                    </div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
     with c3:
+        # --- C3 STAYS THE SAME: DISPATCH TRACKING ---
         st.markdown(f"""
             <div style='background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); height: 110px;'>
                 <p style='margin:0 0 5px 0; font-size:11px; font-weight:800; color:#000000; text-transform:uppercase; text-align:center;'>Dispatched Tracking: {total_dispatched}</p>
