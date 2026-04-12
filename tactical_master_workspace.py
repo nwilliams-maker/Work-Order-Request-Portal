@@ -866,7 +866,7 @@ def run_pod_tab(pod_name):
                         
                 with btn_col:
                     # Combined invisible hook and spacer to prevent double padding
-                    st.markdown("<div class='flush-hook' style='margin-top: 2px;'></div>", unsafe_allow_html=True)
+                    st.markdown("<div class='flush-hook' style='margin-top: 0px;'></div>", unsafe_allow_html=True)
                     
                     if st.button("↩️ Revoke", key=f"quick_rev_{cluster_hash}", help="Pull this route back to Dispatch", use_container_width=True):
                         # Log the previous contractor
