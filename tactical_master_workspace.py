@@ -336,6 +336,60 @@ div.refresh-btn-container > div > button,
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
 }}
 
+/* =========================================
+   NESTED TABS (STATUS PILLS FOR DISPATCH & AWAITING)
+   ========================================= */
+
+/* 1. Stop the invisible hooks from pushing your columns down */
+div.element-container:has(.dispatch-tabs-hook),
+div.element-container:has(.awaiting-tabs-hook) {{
+    position: absolute !important;
+    visibility: hidden !important;
+}}
+
+/* 2. Shape the nested tabs into rounded pills */
+div.element-container:has(.dispatch-tabs-hook) + div.element-container [data-baseweb="tab"],
+div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab"] {{
+    background-color: #ffffff !important;
+    border-radius: 30px !important;
+    margin: 0 4px !important;
+    padding: 8px 18px !important;
+    border: 2px solid transparent !important;
+    font-size: 13px !important;
+}}
+
+/* 3. Hide the default Streamlit gray slider line */
+div.element-container:has(.dispatch-tabs-hook) + div.element-container [data-baseweb="tab-highlight"],
+div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab-highlight"] {{
+    display: none !important;
+}}
+
+/* 4. Left Side (Dispatch) Colors */
+div.element-container:has(.dispatch-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(1) {{
+    border-color: #22c55e !important; color: #064e3b !important; background-color: #f0fdf4 !important; /* Ready */
+}}
+div.element-container:has(.dispatch-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(2) {{
+    border-color: #ef4444 !important; color: #7f1d1d !important; background-color: #fef2f2 !important; /* Flagged */
+}}
+
+/* 5. Right Side (Awaiting) Colors */
+div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(1) {{
+    border-color: #3b82f6 !important; color: #1e3a8a !important; background-color: #f0f7ff !important; /* Sent */
+}}
+div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(2) {{
+    border-color: #22c55e !important; color: #064e3b !important; background-color: #f0fdf4 !important; /* Accepted */
+}
+div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(3) {{
+    border-color: #ef4444 !important; color: #7f1d1d !important; background-color: #fef2f2 !important; /* Declined */
+}}
+
+/* 6. Active Tab Click/Hover State */
+div.element-container:has(.dispatch-tabs-hook) + div.element-container [aria-selected="true"],
+div.element-container:has(.awaiting-tabs-hook) + div.element-container [aria-selected="true"] {{
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.08) !important;
+}}
+
 </style>
 """, unsafe_allow_html=True)
 
