@@ -112,35 +112,53 @@ div.refresh-btn-container > div > button:hover {{
     padding: 10px 20px !important;
 }}
 
-/* Tab 1: Global - Deep Purple */
-.stTabs [data-baseweb="tab"]:nth-of-type(1) {{ border: 2px solid #633094 !important; color: #3b1d58 !important; }}
-
-/* Tab 2: Blue Pod - Navy */
-.stTabs [data-baseweb="tab"]:nth-of-type(2) {{ border: 2px solid #3b82f6 !important; background-color: #f0f7ff !important; color: #1e3a8a !important; }}
-
-/* Tab 3: Green Pod - Forest */
-.stTabs [data-baseweb="tab"]:nth-of-type(3) {{ border: 2px solid #22c55e !important; background-color: #f0fdf4 !important; color: #064e3b !important; }}
-
-/* Tab 4: Orange Pod - Burnt Orange */
-.stTabs [data-baseweb="tab"]:nth-of-type(4) {{ border: 2px solid #f97316 !important; background-color: #fffaf5 !important; color: #7c2d12 !important; }}
-
-/* Tab 5: Purple Pod - Deep Violet */
-.stTabs [data-baseweb="tab"]:nth-of-type(5) {{ border: 2px solid #a855f7 !important; background-color: #faf5ff !important; color: #4c1d95 !important; }}
-
-/* Tab 6: Red Pod - Maroon */
-.stTabs [data-baseweb="tab"]:nth-of-type(6) {{ border: 2px solid #ef4444 !important; background-color: #fef2f2 !important; color: #7f1d1d !important; }}
-
-/* ACTIVE STATE - The "Terraboost Purple Glow" */
-.stTabs [aria-selected="true"] {{ 
-    background-color: #ffffff !important;
-    transform: translateY(-5px) !important;
-    box-shadow: 0 8px 20px rgba(99, 48, 148, 0.3) !important; 
-    border-bottom: 4px solid #633094 !important;
+/* GLOBAL TABS CONTAINER - Clean & Floating */
+.stTabs [data-baseweb="tab-list"] {{ 
+    justify-content: center; 
+    gap: 12px; 
+    background: transparent !important; /* Removes the gray box background */
+    padding: 15px; 
 }}
 
-.stTabs [data-baseweb="tab"]:hover {{
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+/* KILL THE DEFAULT UNDERLINE (The "Cutoff" source) */
+.stTabs [data-baseweb="tab-highlight"] {{
+    background-color: transparent !important;
+}}
+
+/* PERMANENT FLOATING PILLS - No flat bottoms */
+.stTabs [data-baseweb="tab"] {{
+    border-radius: 30px !important; /* Full rounded pill */
+    margin: 0 5px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-weight: 800 !important;
+    padding: 8px 25px !important;
+    border: 2px solid transparent !important; /* Invisible border until set below */
+}}
+
+/* Global Tab */
+.stTabs [data-baseweb="tab"]:nth-of-type(1) {{ border: 2px solid #633094 !important; color: #3b1d58 !important; background: white !important; }}
+
+/* Blue Pod */
+.stTabs [data-baseweb="tab"]:nth-of-type(2) {{ border: 2px solid #3b82f6 !important; background-color: #f0f7ff !important; color: #1e3a8a !important; }}
+
+/* Green Pod */
+.stTabs [data-baseweb="tab"]:nth-of-type(3) {{ border: 2px solid #22c55e !important; background-color: #f0fdf4 !important; color: #064e3b !important; }}
+
+/* Orange Pod */
+.stTabs [data-baseweb="tab"]:nth-of-type(4) {{ border: 2px solid #f97316 !important; background-color: #fffaf5 !important; color: #7c2d12 !important; }}
+
+/* Purple Pod */
+.stTabs [data-baseweb="tab"]:nth-of-type(5) {{ border: 2px solid #a855f7 !important; background-color: #faf5ff !important; color: #4c1d95 !important; }}
+
+/* Red Pod */
+.stTabs [data-baseweb="tab"]:nth-of-type(6) {{ border: 2px solid #ef4444 !important; background-color: #fef2f2 !important; color: #7f1d1d !important; }}
+
+/* ACTIVE STATE - The "Full Glow" (No flat bottom border) */
+.stTabs [aria-selected="true"] {{ 
+    background-color: #ffffff !important;
+    transform: translateY(-4px) scale(1.05) !important;
+    box-shadow: 0 10px 20px rgba(99, 48, 148, 0.25) !important; 
+    /* We removed the border-bottom here to keep the pill shape perfect */
 }}
 
 /* PRIMARY & SECONDARY BUTTONS */
