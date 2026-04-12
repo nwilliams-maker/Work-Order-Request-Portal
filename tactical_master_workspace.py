@@ -65,6 +65,14 @@ st.markdown(f"""
 .stApp {{ background-color: {TB_APP_BG} !important; color: #000000 !important; font-family: 'Inter', sans-serif !important; }}
 .main .block-container {{ max-width: 1100px !important; padding-top: 2rem; }}
 
+/* HORIZONTAL LINES & DIVIDERS */
+hr {{
+    border: none !important;
+    border-top: 1.5px solid #4b5563 !important; /* Dark Gray */
+    margin: 1.5rem 0 !important;
+    opacity: 1 !important;
+}}
+
 /* CENTERED PURPLE HEADERS */
 h1, h2, h3, h4, h5, h6 {{ 
     font-weight: 800 !important; 
@@ -1091,9 +1099,9 @@ with tabs[0]:
                 card_content = f"""
 <p style='margin: 10px 0 0 0; font-size: 26px; font-weight: 800; color: {colors['text']};'>{sent_count} / {total_routes}</p>
 <p style='margin: -5px 0 10px 0; font-size: 11px; font-weight: 700; color: {colors['text']}; opacity: 0.6; text-transform: uppercase;'>Routes Sent</p>
-<div style='display: flex; justify-content: space-around; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 10px;'>
+<div style='display: flex; justify-content: space-around; border-top: 1px solid #4b5563; padding-top: 10px;'>
 <div><p style='margin:0; font-size:9px; color: {colors['text']}; opacity: 0.8; font-weight: 800;'>TASKS</p><b style='color: {colors['text']};'>{total_tasks}</b></div>
-<div style='border-left: 1px solid rgba(0,0,0,0.08); height: 20px;'></div>
+<div style='border-left: 1px solid #4b5563; height: 20px;'></div>
 <div><p style='margin:0; font-size:9px; color: {colors['text']}; opacity: 0.8; font-weight: 800;'>STOPS</p><b style='color: {colors['text']};'>{total_stops}</b></div>
 </div>
 """
