@@ -215,27 +215,49 @@ button[kind="secondary"] {{
     transition: all 0.2s ease !important;
 }}
 
-/* EXPANDER & LAYOUT TIGHTENING */
-div[data-testid="stColumn"]:has(.flush-hook) button[kind="secondary"] {{
-    margin-left: -1rem !important;
-    width: calc(100% + 1rem) !important;
-    border-top-left-radius: 0px !important;
-    border-bottom-left-radius: 0px !important;
+/* =========================================
+   EXPANDER & LAYOUT TIGHTENING (SQUASHED GAPS & CENTERED)
+   ========================================= */
+
+/* 1. SQUASH VERTICAL GAPS: Kill Streamlit's default 16px gap between rows */
+div.element-container:has(div[data-testid="stExpander"]),
+div.element-container:has(div[data-testid="stHorizontalBlock"]:has(.flush-hook)) {{
+    margin-bottom: -12px !important; 
 }}
 
-div[data-testid="stColumn"]:has(.expander-hook) div[data-testid="stExpander"] {{
-    border-top-right-radius: 0px !important;
-    border-bottom-right-radius: 0px !important;
-}}
-
-/* Main Expander Container */
+/* 2. MAIN EXPANDER CONTAINER */
 div[data-testid="stExpander"] {{ 
     border: 1px solid #cbd5e1 !important; 
     border-radius: 10px !important; 
     box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
-    margin-bottom: 8px !important;
+    margin-bottom: 0px !important; /* Killed internal margin */
     background-color: #ffffff !important;
     overflow: hidden !important;
+}}
+
+/* 3. PERFECT ROW ALIGNMENT */
+div[data-testid="stHorizontalBlock"]:has(.flush-hook) {{
+    align-items: flex-start !important; /* Anchors the button to the top so it doesn't stretch weirdly when the expander opens */
+}}
+
+/* 4. FLUSH BUTTON MECHANICS (Closes the gap between Card and Button) */
+div[data-testid="stColumn"]:has(.flush-hook) {{
+    padding-left: 0px !important; /* Kills the column gap */
+}}
+
+div[data-testid="stColumn"]:has(.flush-hook) button {{
+    width: calc(100% + 5px) !important;
+    margin-left: -5px !important; /* Pulls it tight against the expander */
+    border-top-left-radius: 0px !important;
+    border-bottom-left-radius: 0px !important;
+    height: 48px !important; /* Locks height to perfectly match the collapsed expander */
+}}
+
+/* Square off the right side of the expander to connect to the button */
+div[data-testid="stColumn"]:has(.expander-hook) div[data-testid="stExpander"] {{
+    border-top-right-radius: 0px !important;
+    border-bottom-right-radius: 0px !important;
+    border-right: none !important; /* Prevents double-thick borders where they touch */
 }}
 
 /* Header text color */
