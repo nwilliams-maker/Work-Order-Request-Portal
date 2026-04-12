@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 import requests
 import base64
@@ -217,48 +215,27 @@ button[kind="secondary"] {{
     transition: all 0.2s ease !important;
 }}
 
-/* =========================================
-   EXPANDER & LAYOUT TIGHTENING
-   ========================================= */
-
-/* FLUSH BUTTON MECHANICS (The Revoke/Re-Route Buttons) */
-/* Increased specificity to ensure it overrides the 42px generic secondary button height */
-div[data-testid="stColumn"]:has(.flush-hook) button[kind="secondary"],
-div[data-testid="stColumn"]:has(.flush-hook) button {{
+/* EXPANDER & LAYOUT TIGHTENING */
+div[data-testid="stColumn"]:has(.flush-hook) button[kind="secondary"] {{
     margin-left: -1rem !important;
     width: calc(100% + 1rem) !important;
     border-top-left-radius: 0px !important;
     border-bottom-left-radius: 0px !important;
-    height: 45px !important; /* Perfect height match for left column */
 }}
 
-/* FLUSH EXPANDER MECHANICS (Squaring the right side) */
 div[data-testid="stColumn"]:has(.expander-hook) div[data-testid="stExpander"] {{
     border-top-right-radius: 0px !important;
     border-bottom-right-radius: 0px !important;
-    border-right: none !important; /* Prevents double-thick border where they touch */
 }}
 
-/* MAIN EXPANDER CONTAINER */
+/* Main Expander Container */
 div[data-testid="stExpander"] {{ 
     border: 1px solid #cbd5e1 !important; 
     border-radius: 10px !important; 
     box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
-    margin-bottom: 0px !important; /* Kills internal margin */
+    margin-bottom: 8px !important;
     background-color: #ffffff !important;
     overflow: hidden !important;
-}}
-
-/* 🌟 AGGRESSIVE VERTICAL GAP SQUASH */
-/* Kills the gap between horizontal blocks */
-div[data-testid="stHorizontalBlock"]:has(.expander-hook) {{
-    margin-bottom: -1rem !important;
-    padding-bottom: 0px !important;
-}}
-
-/* Kills the gap from the parent container */
-div.element-container:has(div[data-testid="stHorizontalBlock"]:has(.expander-hook)) {{
-    margin-bottom: -1rem !important;
 }}
 
 /* Header text color */
@@ -354,53 +331,6 @@ button[kind="secondary"],
 div.refresh-btn-container > div > button,
 .stTabs [data-baseweb="tab"] {{
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-}}
-
-/* =========================================
-   NESTED TABS (STATUS PILLS FOR DISPATCH & AWAITING)
-   ========================================= */
-/* Target the specific stTabs containers using our invisible hooks to override the Main Pod colors */
-
-div.element-container:has(.dispatch-tabs-hook) + div.element-container [data-baseweb="tab"],
-div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab"] {{
-    background-color: #ffffff !important;
-    border-radius: 30px !important;
-    margin: 0 4px !important;
-    padding: 8px 18px !important;
-    border: 2px solid transparent !important;
-    font-size: 13px !important;
-}}
-
-/* --- DISPATCH TABS (Left Side) --- */
-/* 1. Ready (Green) */
-div.element-container:has(.dispatch-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(1) {{
-    border-color: #22c55e !important; color: #064e3b !important; background-color: #f0fdf4 !important;
-}}
-/* 2. Flagged (Red) */
-div.element-container:has(.dispatch-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(2) {{
-    border-color: #ef4444 !important; color: #7f1d1d !important; background-color: #fef2f2 !important;
-}}
-
-/* --- AWAITING TABS (Right Side) --- */
-/* 1. Sent (Blue) */
-div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(1) {{
-    border-color: #3b82f6 !important; color: #1e3a8a !important; background-color: #f0f7ff !important;
-}}
-/* 2. Accepted (Green) */
-div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(2) {{
-    border-color: #22c55e !important; color: #064e3b !important; background-color: #f0fdf4 !important;
-}}
-/* 3. Declined (Red) */
-div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(3) {{
-    border-color: #ef4444 !important; color: #7f1d1d !important; background-color: #fef2f2 !important;
-}}
-
-/* --- ACTIVE NESTED TAB GLOW --- */
-div.element-container:has(.dispatch-tabs-hook) + div.element-container [aria-selected="true"],
-div.element-container:has(.awaiting-tabs-hook) + div.element-container [aria-selected="true"] {{
-    background-color: #ffffff !important;
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.08) !important;
 }}
 
 </style>
@@ -1111,9 +1041,6 @@ def run_pod_tab(pod_name):
         # SECTION 1: DISPATCH (LEFT SIDE - CENTERED)
         # ==========================================
         st.markdown(f"<div style='font-size: 1.5rem; font-weight: 800; color: {TB_PURPLE}; margin-bottom: 5px; text-align: center;'>🚀 Dispatch</div>", unsafe_allow_html=True)
-        
-        # ADD THIS HOOK:
-        st.markdown("<div class='dispatch-tabs-hook' style='display:none;'></div>", unsafe_allow_html=True)
         t_ready, t_flagged = st.tabs(["📥 Ready", "⚠️ Flagged"])
 
         with t_ready:
@@ -1150,9 +1077,6 @@ def run_pod_tab(pod_name):
         # SECTION 2: AWAITING CONFIRMATION (RIGHT SIDE - CENTERED)
         # ==========================================
         st.markdown(f"<div style='font-size: 1.5rem; font-weight: 800; color: {TB_GREEN}; margin-bottom: 5px; text-align: center;'>⏳ Awaiting Confirmation</div>", unsafe_allow_html=True)
-        
-        # ADD THIS HOOK:
-        st.markdown("<div class='awaiting-tabs-hook' style='display:none;'></div>", unsafe_allow_html=True)
         t_sent, t_acc, t_dec = st.tabs(["✉️ Sent (Pending)", "✅ Accepted", "❌ Declined"])
 
         with t_sent:
