@@ -216,11 +216,14 @@ button[kind="secondary"] {{
 }}
 
 /* EXPANDER & LAYOUT TIGHTENING */
-div[data-testid="stColumn"]:has(.flush-hook) button[kind="secondary"] {{
+div[data-testid="stColumn"]:has(.flush-hook) button {{
     margin-left: -1rem !important;
     width: calc(100% + 1rem) !important;
     border-top-left-radius: 0px !important;
     border-bottom-left-radius: 0px !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    padding: 0px !important;
 }}
 
 div[data-testid="stColumn"]:has(.expander-hook) div[data-testid="stExpander"] {{
