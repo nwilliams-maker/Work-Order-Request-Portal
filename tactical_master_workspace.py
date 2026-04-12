@@ -58,11 +58,25 @@ headers = {"Authorization": f"Basic {base64.b64encode(f'{ONFLEET_KEY}:'.encode()
 st.set_page_config(page_title="Dispatch Command Center", layout="wide")
 
 # --- PINNED TOP-LEFT LOGO ---
-st.markdown("""
-    <div style="position: fixed; top: 15px; left: 20px; z-index: 999999;">
-        <img src="terraboost_logo.png" style="width: 200px;"> 
-    </div>
-""", unsafe_allow_html=True)
+# Function to convert the local image into web-safe code
+def get_base64_image(image_path):
+    try:
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    except Exception as e:
+        return ""
+
+# Make sure "terraboost_logo.png" perfectly matches your saved file name!
+logo_base64 = get_base64_image("terraboost_logo.png")
+
+if logo_base64:
+    st.markdown(f"""
+        <div style="position: fixed; top: 15px; left: 20px; z-index: 999999;">
+            <img src="data:image/png;base64,{logo_base64}" style="width: 200px;"> 
+        </div>
+    """, unsafe_allow_html=True)
+else:
+    st.sidebar.error("Logo file not found! Check the file name.")
 
 # --- UI STYLING ---
 st.markdown(f"""
