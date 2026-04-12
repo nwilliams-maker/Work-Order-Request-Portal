@@ -1165,7 +1165,8 @@ with tabs[0]:
                 # Metrics HTML (Flushed Left to prevent markdown code blocks)
                 card_content = f"""
 <p style='margin: 10px 0 0 0; font-size: 26px; font-weight: 800; color: {colors['text']};'>{true_sent_count} / {total_routes}</p>
-<p style='margin: -5px 0 10px 0; font-size: 11px; font-weight: 700; color: {colors['text']}; opacity: 0.6; text-transform: uppercase;'>Routes Dispatched</p>
+<p style='margin: -5px 0 0 0; font-size: 11px; font-weight: 700; color: {colors['text']}; opacity: 0.6; text-transform: uppercase;'>Routes Sent</p>
+<p style='margin: 2px 0 8px 0; font-size: 9px; font-weight: 700; color: {colors['text']}; opacity: 0.5;'>{len(accepted)} ACCEPTED | {len(declined)} DECLINED</p>
 <div style='display: flex; justify-content: space-around; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 10px;'>
 <div><p style='margin:0; font-size:9px; color: {colors['text']}; opacity: 0.8; font-weight: 800;'>TASKS</p><b style='color: {colors['text']};'>{total_tasks}</b></div>
 <div style='border-left: 1px solid rgba(0,0,0,0.08); height: 20px;'></div>
