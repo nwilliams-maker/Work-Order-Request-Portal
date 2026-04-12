@@ -254,13 +254,10 @@ iframe[title="streamlit_folium.st_folium"] {{
 .stFolium {{ background: transparent !important; }}
 
 /* =========================================
-   THE COOL PURPLE GLOW (Hover Effects)
-   Applies to Cards, Expanders, Tabs, and Buttons
+   HOVER EFFECTS (Split by Element Type)
    ========================================= */
-div[data-testid="stExpander"]:hover,
-.pod-card-pill:hover,
-.dashboard-supercard:hover,
-.stTabs [data-baseweb="tab"]:hover,
+
+/* 1. BUTTONS: Lift + Purple Glow */
 button[kind="primary"]:hover,
 button[kind="secondary"]:hover,
 div.refresh-btn-container > div > button:hover {{
@@ -270,7 +267,17 @@ div.refresh-btn-container > div > button:hover {{
     z-index: 10;
 }}
 
-/* Smooth transitions */
+/* 2. CARDS, TABS & EXPANDERS: Lift + Neutral Drop Shadow (No Purple) */
+div[data-testid="stExpander"]:hover,
+.pod-card-pill:hover,
+.dashboard-supercard:hover,
+.stTabs [data-baseweb="tab"]:hover {{
+    transform: translateY(-4px) !important;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08) !important; /* Soft, natural shadow to sell the 3D lift */
+    z-index: 10;
+}}
+
+/* Smooth transitions for everything when mouse enters/leaves */
 div[data-testid="stExpander"],
 .pod-card-pill,
 .dashboard-supercard,
