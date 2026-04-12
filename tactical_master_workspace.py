@@ -72,7 +72,7 @@ logo_base64 = get_base64_image("terraboost_logo.png")
 if logo_base64:
     st.markdown(f"""
         <div style="position: fixed; top: 15px; left: 20px; z-index: 999999;">
-            <img src="data:image/png;base64,{logo_base64}" style="width: 200px;"> 
+            <img src="data:image/png;base64,{logo_base64}" style="width: 140px;"> 
         </div>
     """, unsafe_allow_html=True)
 else:
