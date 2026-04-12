@@ -1097,7 +1097,7 @@ with tabs[0]:
         st.rerun()
 
     # --- 4. MASTER MAP ---
-    st.markdown("<br>### 🗺️ Master Route Map", unsafe_allow_html=True)
+    st.markdown("<br> 🗺️ Master Route Map", unsafe_allow_html=True)
     st_folium(global_map, height=500, use_container_width=True, key="global_master_map")
 
 # --- INDIVIDUAL POD TABS ---
