@@ -598,29 +598,10 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
     
     st.text_area("Email Content Preview", height=180, key=tx_key, disabled=not is_unlocked)
 
-    # --- 7. BUTTON LAYOUT (WITH REVOKE FEATURE) ---
+    # --- 7. BUTTON LAYOUT ---
     btn_label = "🚀 GENERATE LINK & OPEN GMAIL" if (not real_id or is_declined) else "🚀 OPEN IN GMAIL (RESEND)"
 
-    # If the route is sitting in the "Sent" tab, split the layout to show the Revoke button
-    if is_sent and not is_declined:
-        c1, c2 = st.columns([3, 1])
-        target_col = c1
-        with c2:
-            if st.button("↩️ Revoke Route", key=f"rev_{cluster_hash}", use_container_width=True):
-                # Log the contractor and time
-                hist = st.session_state.get(f"history_{cluster_hash}", [])
-                hist.append(f"{cluster.get('contractor_name', 'Unknown')} ({datetime.now().strftime('%m/%d')})")
-                st.session_state[f"history_{cluster_hash}"] = hist
-                
-                # Flag as reverted and destroy the old link
-                st.session_state[f"reverted_{cluster_hash}"] = True
-                if sync_key in st.session_state:
-                    del st.session_state[sync_key]
-                st.rerun()
-    else:
-        target_col = st.container()
-
-    with target_col:
+    with st.container():
         if st.button(btn_label, type="primary", key=f"gbtn_{cluster_hash}", disabled=not is_unlocked, use_container_width=True):
             final_route_id = real_id
             with st.spinner("Generating secure link..."):
