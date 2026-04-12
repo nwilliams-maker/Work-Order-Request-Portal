@@ -400,7 +400,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
 
     st.write("### 📍 Route Stops")
 
-    # (Task categorization logic remains the same)
+    # --- 2. STOP METRICS & PILLS ---
     stop_metrics = {}
     for c in cluster['data']:
         addr = c['full']
@@ -432,7 +432,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         
     st.divider()
 
-    # --- 2. CONTRACTOR FILTERING ---
+    # --- 3. CONTRACTOR FILTERING (100 MILES) ---
     ic_df = st.session_state.get('ic_df', pd.DataFrame())
     v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy()
     if not v_ics.empty:
@@ -445,26 +445,25 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
 
     ic_opts = {f"{r['Name']} ({round(r['d'],1)} mi)": r for _, r in v_ics.iterrows()}
     
-    # --- 3. DYNAMIC PRICING SYNC LOGIC ---
+    # --- 4. THE RESTORED DYNAMIC PRICING LOGIC ---
     def sync_on_total():
-        # User edited TOTAL COMP
         val = st.session_state[pay_key]
-        st.session_state[rate_key] = round(val / cluster['stops'], 2)
+        st.session_state[rate_key] = round(val / cluster['stops'], 2) if cluster['stops'] > 0 else 0
 
     def sync_on_rate():
-        # User edited RATE PER STOP
         val = st.session_state[rate_key]
         st.session_state[pay_key] = round(val * cluster['stops'], 2)
 
     def update_for_new_contractor():
-        # Reset pricing floor when a DIFFERENT contractor is selected
+        # This callback fires BEFORE the UI re-renders, dynamically updating the state
+        # so the grayed-out boxes show the correct math for the new contractor.
         selected_label = st.session_state[sel_key]
         if selected_label != st.session_state.get(last_sel_key):
             ic_new = ic_opts[selected_label]
             _, h, _ = get_gmaps(ic_new['Location'], list(stop_metrics.keys())[:25])
             new_pay = float(round(max(cluster['stops'] * 18.0, h * 25.0), 2))
             st.session_state[pay_key] = new_pay
-            st.session_state[rate_key] = round(new_pay / cluster['stops'], 2)
+            st.session_state[rate_key] = round(new_pay / cluster['stops'], 2) if cluster['stops'] > 0 else 0
             st.session_state[last_sel_key] = selected_label
 
     # Initial Setup (First time card is seen)
@@ -474,14 +473,15 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         _, h, _ = get_gmaps(ic_init['Location'], list(stop_metrics.keys())[:25])
         initial_pay = float(round(max(cluster['stops'] * 18.0, h * 25.0), 2))
         st.session_state[pay_key] = initial_pay
-        st.session_state[rate_key] = round(initial_pay / cluster['stops'], 2)
+        st.session_state[rate_key] = round(initial_pay / cluster['stops'], 2) if cluster['stops'] > 0 else 0
         st.session_state[sel_key] = first_ic_label
         st.session_state[last_sel_key] = first_ic_label
 
-    # --- 4. THE UI ROW ---
+    # --- 5. THE UI ROW ---
     col_a, col_b, col_c, col_d = st.columns([1.5, 1, 1, 1])
     
     with col_a:
+        # The callback is attached here to force the background math to run
         st.selectbox("Contractor", list(ic_opts.keys()), key=sel_key, on_change=update_for_new_contractor)
     
     # Get current state values
@@ -502,15 +502,14 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         is_unlocked = st.checkbox("Authorize Premium Rate / Distance", key=f"lock_{cluster_hash}")
 
     with col_b:
-        # CRITICAL: Do NOT use the 'value' argument here, only 'key'
         st.number_input("Total Comp ($)", min_value=0.0, step=5.0, key=pay_key, on_change=sync_on_total, disabled=not is_unlocked)
     with col_c:
         st.number_input("Rate/Stop ($)", min_value=0.0, step=1.0, key=rate_key, on_change=sync_on_rate, disabled=not is_unlocked)
     with col_d:
         st.date_input("Deadline", datetime.now().date()+timedelta(14), key=f"dd_{cluster_hash}", disabled=not is_unlocked)
 
-    # --- 5. UPDATED FINANCIALS & PREVIEW ---
-    # Fetch final values from session state to ensure they match the UI
+    # --- 6. UPDATED FINANCIALS & PREVIEW ---
+    # Fetch final values from session state to ensure they match the UI dynamically
     final_pay = st.session_state[pay_key]
     final_rate = st.session_state[rate_key]
 
@@ -529,8 +528,6 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
     
     st.text_area("Email Content Preview", sig_preview, height=180, key=f"tx_{cluster_hash}_preview", disabled=not is_unlocked)
 
-    # Gmail Button logic continues...
-
     btn_label = "🚀 GENERATE LINK & OPEN GMAIL" if (not real_id or is_declined) else "🚀 OPEN IN GMAIL (RESEND)"
 
     if st.button(btn_label, type="primary", key=f"gbtn_{cluster_hash}", disabled=not is_unlocked):
@@ -540,7 +537,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
                 home = ic['Location']
                 payload = {
                     "icn": ic['Name'], "ice": ic['Email'], "wo": wo_val, 
-                    "due": str(due), "comp": pay, "lCnt": cluster['stops'], "mi": mi, "time": t_str, "phone": str(ic['Phone']),
+                    "due": str(due), "comp": final_pay, "lCnt": cluster['stops'], "mi": mi, "time": t_str, "phone": str(ic['Phone']),
                     "locs": " | ".join([home] + list(stop_metrics.keys()) + [home]),
                     "taskIds": ",".join(task_ids),
                     "tCnt": len(task_ids),
@@ -553,13 +550,11 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
                 else:
                     st.error("Failed to generate link."); st.stop()
 
-        # Build final signature with final_route_id
         final_sig = sig_preview.replace("LINK_PENDING", final_route_id)
         gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={ic['Email']}&su=Route Request: {ic['Name']}&body={requests.utils.quote(final_sig)}"
         
         st.components.v1.html(f"<script>window.open('{gmail_url}', '_blank');</script>", height=0)
         
-        # State updates for UI
         now_ts = datetime.now().strftime('%m/%d %I:%M %p')
         st.session_state[f"sent_ts_{cluster_hash}"] = now_ts
         st.session_state[f"contractor_{cluster_hash}"] = ic['Name']
