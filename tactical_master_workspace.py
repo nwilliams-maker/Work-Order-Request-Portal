@@ -1134,10 +1134,9 @@ with tabs[0]:
         st.session_state.trigger_pull = False
         st.rerun()
 
-        # --- 3. MASTER MAP ---
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("### 🗺️ Master Route Map")
-        st_folium(global_map, height=500, use_container_width=True, key="global_overview_map")
+        # --- 4. MASTER MAP ---
+    st.markdown("<br>### 🗺️ Master Route Map", unsafe_allow_html=True)
+    st_folium(global_map, height=500, use_container_width=True, key="global_master_map")
     else:
         st.info("No pod data initialized yet. Click the button above to pull the global data.")
 
