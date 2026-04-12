@@ -216,11 +216,12 @@ button[kind="secondary"] {{
 }}
 
 /* EXPANDER & LAYOUT TIGHTENING */
-div[data-testid="stColumn"]:has(.flush-hook) button[kind="secondary"] {{
+div[data-testid="stColumn"]:has(.flush-hook) button {{
     margin-left: -1rem !important;
     width: calc(100% + 1rem) !important;
     border-top-left-radius: 0px !important;
     border-bottom-left-radius: 0px !important;
+    height: 45px !important; /* 🌟 Brings the button height up to perfectly align with expanders on the left */
 }}
 
 div[data-testid="stColumn"]:has(.expander-hook) div[data-testid="stExpander"] {{
@@ -236,6 +237,11 @@ div[data-testid="stExpander"] {{
     margin-bottom: 0px !important;
     background-color: #ffffff !important;
     overflow: hidden !important;
+}}
+
+/* 🌟 KILL THE VERTICAL GAP BETWEEN ROWS */
+div.element-container:has(.expander-hook) {{
+    margin-bottom: -1rem !important; /* Pulls the cards up so the gap is practically gone */
 }}
 
 /* Header text color */
