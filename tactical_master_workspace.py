@@ -358,6 +358,9 @@ def fetch_sent_records_from_sheet():
         ]
         
         sent_dict = {}
+        # Prepare ghost lists for each pod
+        ghost_routes = {"Blue": [], "Green": [], "Orange": [], "Purple": [], "Red": [], "UNKNOWN": []}
+        
         for gid, status_label in sheets_to_fetch:
             try:
                 df = pd.read_csv(base_url + gid)
@@ -378,6 +381,7 @@ def fetch_sent_records_from_sheet():
                                 except:
                                     ts_display = str(raw_ts)
                             
+                            # 1. Live Task Matching
                             for tid in tids:
                                 tid = tid.strip()
                                 if tid:
@@ -386,12 +390,43 @@ def fetch_sent_records_from_sheet():
                                         "status": status_label,
                                         "time": ts_display
                                     }
+                            
+                            # 2. GHOST ROUTES (Only for Accepted routes that vanish from the pool)
+                            if status_label == 'accepted':
+                                locs_str = str(p.get('locs', ''))
+                                state_guess, city_guess = "UNKNOWN", "Unknown"
+                                stops_list = [s.strip() for s in locs_str.split('|') if s.strip()]
+                                
+                                # Extract city/state from the first real stop
+                                if len(stops_list) > 1:
+                                    addr_parts = stops_list[1].split(',')
+                                    if len(addr_parts) >= 2:
+                                        state_guess = addr_parts[-1].strip().upper()
+                                        city_guess = addr_parts[-2].strip()
+                                
+                                norm_state = STATE_MAP.get(state_guess, state_guess)
+                                pod_name = "UNKNOWN"
+                                for p_name, p_config in POD_CONFIGS.items():
+                                    if norm_state in p_config['states']:
+                                        pod_name = p_name
+                                        break
+                                
+                                if pod_name != "UNKNOWN":
+                                    ghost_routes[pod_name].append({
+                                        "contractor_name": c_name,
+                                        "route_ts": ts_display,
+                                        "city": city_guess,
+                                        "state": norm_state,
+                                        "stops": p.get('lCnt', 0),
+                                        "tasks": p.get('tCnt', len(tids)),
+                                        "pay": p.get('comp', 0)
+                                    })
                         except: continue
             except: continue
-        return sent_dict
+        return sent_dict, ghost_routes
     except Exception as e:
         st.error(f"Failed to fetch portal records: {e}")
-        return {}
+        return {}, {}
 
 @st.cache_data(show_spinner=False)
 def get_gmaps(home, waypoints):
@@ -823,7 +858,8 @@ def run_pod_tab(pod_name):
         return
 
     # --- KEEPING THE CLEAN AUTO-SYNC LOGIC ---
-    sent_db = fetch_sent_records_from_sheet()
+    sent_db, ghost_db = fetch_sent_records_from_sheet()
+    pod_ghosts = ghost_db.get(pod_name, [])
 
     ready, review, sent, accepted, declined = [], [], [], [], []
 
@@ -884,6 +920,10 @@ def run_pod_tab(pod_name):
     total_routes = len(cls)
     total_dispatched = len(sent) + len(accepted) + len(declined)
 
+    # 🌟 NEW: Add ghosts to the Tracking Math
+    total_accepted = len(accepted) + len(pod_ghosts)
+    total_dispatched = len(sent) + total_accepted + len(declined)
+
     # We swap the widths so the wider 'Routes' card fits on the left
     c1, c2, c3 = st.columns([1.5, 1, 1.5])
 
@@ -935,7 +975,7 @@ def run_pod_tab(pod_name):
                 <div style='display:flex; justify-content:space-between; gap:8px;'>
                     <div style='background:{TB_GREEN_FILL}; flex:1; padding:8px; border-radius:8px; text-align:center;'>
                         <p style='margin:0; font-size:9px; font-weight:800; color:#000000;'>ACCEPTED</p>
-                        <p style='margin:0; font-size:20px; font-weight:800; color:#000000;'>{len(accepted)}</p>
+                        <p style='margin:0; font-size:20px; font-weight:800; color:#000000;'>{total_accepted}</p>
                     </div>
                     <div style='background:{TB_RED_FILL}; flex:1; padding:8px; border-radius:8px; text-align:center;'>
                         <p style='margin:0; font-size:9px; font-weight:800; color:#000000;'>DECLINED</p>
@@ -1058,44 +1098,49 @@ def run_pod_tab(pod_name):
                             del st.session_state[sync_key]
                         st.rerun()
         with t_acc:
-            if not accepted: st.info("Waiting for portal acceptances...")
+            if not accepted and not pod_ghosts: st.info("Waiting for portal acceptances...")
+            
+            # Render any live accepted routes (caught instantly before tasks disappear)
             for i, c in enumerate(accepted):
                 ic_name = c.get('contractor_name', 'Unknown')
                 ts_label = f" | {c.get('route_ts', '')}" if c.get('route_ts') else ""
                 
-                # Re-calculate hash for the double-check button
                 task_ids = [str(t['id']).strip() for t in c['data']]
                 cluster_hash = hashlib.md5("".join(sorted(task_ids)).encode()).hexdigest()
                 
-                # Use the exact same [5, 1] flush layout as the Sent and Declined tabs
                 exp_col, btn_col = st.columns([5, 1])
-                
                 with exp_col:
                     st.markdown("<div class='expander-hook' style='display:none;'></div>", unsafe_allow_html=True)
                     with st.expander(f"✅ {ic_name}{ts_label} | {c['city']}, {c['state']}"):
-                        st.success("Route accepted. Onfleet assignment should be complete.")
+                        st.success("Route accepted. Tasks are assigning in Onfleet now.")
                         render_dispatch(i+2000, c, pod_name, is_sent=True)
-                        
                 with btn_col:
                     st.markdown("<div class='flush-hook' style='display:none;'></div>", unsafe_allow_html=True)
-                    
-                    # 🚀 NEW: POPOVER OPENS INSTANTLY CLIENT-SIDE
                     with st.popover("↩️ Revoke", use_container_width=True):
                         st.error(f"⚠️ **Revoke from {ic_name}?**\n\nThey have already accepted this route.")
-                        
-                        # We make this primary so it stands out and avoids our custom flush CSS
                         if st.button("🚨 Yes, Revoke", key=f"do_rev_{cluster_hash}", type="primary", use_container_width=True):
-                            # Log the previous contractor
                             hist = st.session_state.get(f"history_{cluster_hash}", [])
-                            hist.append(f"{ic_name} ({datetime.now().strftime('%m/%d')} - Revoked Post-Accept)")
+                            hist.append(f"{ic_name} ({datetime.now().strftime('%m/%d')} - Revoked)")
                             st.session_state[f"history_{cluster_hash}"] = hist
-                            
-                            # Flag as reverted and destroy the link
                             st.session_state[f"reverted_{cluster_hash}"] = True
-                            sync_key = f"sync_{cluster_hash}"
-                            if sync_key in st.session_state:
-                                del st.session_state[sync_key]
+                            if f"sync_{cluster_hash}" in st.session_state: del st.session_state[f"sync_{cluster_hash}"]
                             st.rerun()
+
+            # Render Ghost Routes (Tasks already cleared from OnFleet)
+            for i, g in enumerate(pod_ghosts):
+                with st.expander(f"✅ {g['contractor_name']} | {g['route_ts']} | {g['city']}, {g['state']}"):
+                    st.success("Route accepted and tasks successfully assigned in OnFleet.")
+                    st.markdown(f"""
+                        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-top:5px;">
+                            <p style="margin:0; font-size:12px; color:#64748b; font-weight:800; text-transform:uppercase;">Historical Route Data</p>
+                            <div style="display:flex; justify-content:space-between; margin-top:8px;">
+                                <div><span style="font-size:11px; color:#475569;">Original Tasks:</span><br><b style="color:#000000; font-size:16px;">{g['tasks']}</b></div>
+                                <div><span style="font-size:11px; color:#475569;">Stops:</span><br><b style="color:#000000; font-size:16px;">{g['stops']}</b></div>
+                                <div><span style="font-size:11px; color:#475569;">Compensation:</span><br><b style="color:#22c55e; font-size:16px;">${g['pay']}</b></div>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
         with t_dec:
             if not declined: st.info("No declined routes.")
             for i, c in enumerate(declined):
@@ -1162,8 +1207,8 @@ with tabs[0]:
     # --- 1. INITIALIZE BUTTON ---
     c_btn = st.columns([1,2,1])[1]
     if c_btn.button("🚀 Initialize All Pods", key="global_init_btn", use_container_width=True):
-        st.session_state.sent_db = fetch_sent_records_from_sheet()
-        st.session_state.trigger_pull = True 
+        st.session_state.sent_db, st.session_state.ghost_db = fetch_sent_records_from_sheet()
+        st.session_state.trigger_pull = True
 
     st.markdown("---")
 
@@ -1172,7 +1217,7 @@ with tabs[0]:
     pod_keys = list(POD_CONFIGS.keys())
     global_map = folium.Map(location=[39.8283, -98.5795], zoom_start=4, tiles="cartodbpositron")
     
-    current_sent_db = fetch_sent_records_from_sheet()
+    current_sent_db, ghost_db = fetch_sent_records_from_sheet()
 
     for i, pod in enumerate(pod_keys):
         # Python Colors Mapping
@@ -1229,14 +1274,17 @@ with tabs[0]:
                         if orig == "declined":
                             declined.append(c)
                 
-                # Combine Sent (Pending), Accepted, and Declined for the true Total Sent out
-                true_sent_count = len(sent) + len(accepted) + len(declined)
+                # Combine Live data with Ghost History
+                pod_ghosts = ghost_db.get(pod, [])
+                total_accepted = len(accepted) + len(pod_ghosts)
+                true_sent_count = len(sent) + total_accepted + len(declined)
+                visual_total_routes = len(pod_cls) + len(pod_ghosts)
                 
                 # Metrics HTML (Flushed Left to prevent markdown code blocks)
                 card_content = f"""
-<p style='margin: 10px 0 0 0; font-size: 26px; font-weight: 800; color: {colors['text']};'>{true_sent_count} / {total_routes}</p>
+<p style='margin: 10px 0 0 0; font-size: 26px; font-weight: 800; color: {colors['text']};'>{true_sent_count} / {visual_total_routes}</p>
 <p style='margin: -5px 0 0 0; font-size: 11px; font-weight: 700; color: {colors['text']}; opacity: 0.6; text-transform: uppercase;'>Routes Sent</p>
-<p style='margin: 2px 0 8px 0; font-size: 9px; font-weight: 700; color: {colors['text']}; opacity: 0.5;'>{len(accepted)} ACCEPTED | {len(declined)} DECLINED</p>
+<p style='margin: 2px 0 8px 0; font-size: 9px; font-weight: 700; color: {colors['text']}; opacity: 0.5;'>{total_accepted} ACCEPTED | {len(declined)} DECLINED</p>
 <div style='display: flex; justify-content: space-around; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 10px;'>
 <div><p style='margin:0; font-size:9px; color: {colors['text']}; opacity: 0.8; font-weight: 800;'>TASKS</p><b style='color: {colors['text']};'>{total_tasks}</b></div>
 <div style='border-left: 1px solid rgba(0,0,0,0.08); height: 20px;'></div>
@@ -1257,7 +1305,7 @@ with tabs[0]:
             
     # --- 3. THE LOADING ZONE (Progress Bar BELOW cards) ---
     if st.session_state.get("trigger_pull"):
-        st.session_state.sent_db = fetch_sent_records_from_sheet()
+        st.session_state.sent_db, st.session_state.ghost_db = fetch_sent_records_from_sheet()
         p_bar = st.progress(0, text="🎬 Initializing Operational Data...")
         for idx, p in enumerate(pod_keys):
             st.session_state.current_loading_pod = p 
