@@ -1082,8 +1082,6 @@ with tabs[0]:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 🗺️ Master Route Map")
     st_folium(global_map, height=500, use_container_width=True, key="global_overview_map")
-    else:
-        st.info("No pod data initialized yet. Click the button above to pull the global data.")
-
+    
 for i, pod in enumerate(["Blue", "Green", "Orange", "Purple", "Red"], 1):
     with tabs[i]: run_pod_tab(pod)
