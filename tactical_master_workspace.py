@@ -64,180 +64,49 @@ st.markdown(f"""
 .stApp {{ background-color: {TB_APP_BG} !important; color: #000000 !important; font-family: 'Inter', sans-serif !important; }}
 .main .block-container {{ max-width: 1100px !important; padding-top: 2rem; }}
 
-/* Floating Card Animation */
-.pod-card-pill {{
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}}
-.pod-card-pill:hover {{
-    transform: translateY(-5px);
-    box-shadow: 0 12px 24px rgba(99, 48, 148, 0.15) !important;
-}}
+/* CENTERED HEADERS */
+h1, h2, h3, h4, h5, h6 {{ color: #633094 !important; font-weight: 800 !important; text-align: center !important; width: 100%; }}
 
-/* CENTERED PURPLE HEADERS */
-h1, h2, h3, h4, h5, h6 {{ 
-    color: #633094 !important; 
-    font-weight: 800 !important; 
-    text-align: center !important; 
-    width: 100%;
-}}
-
-/* MODERN CONDENSED REFRESH BUTTON - FAR RIGHT */
-div.refresh-btn-container {{
-    display: flex;
-    justify-content: flex-end;
-    width: 100%;
-}}
-
+/* CONDENSED REFRESH BUTTON - FAR RIGHT */
+div.refresh-btn-container {{ display: flex; justify-content: flex-end; width: 100%; }}
 div.refresh-btn-container > div > button {{
-    height: 28px !important;
-    padding: 0 12px !important;
-    font-size: 12px !important;
-    border-radius: 20px !important;
-    border: 1.2px solid #633094 !important;
-    background-color: transparent !important;
-    color: #633094 !important;
-    font-weight: 700 !important;
-    transition: all 0.2s ease-in-out !important;
+    height: 28px !important; padding: 0 12px !important; font-size: 12px !important;
+    border-radius: 20px !important; border: 1.2px solid #633094 !important;
+    background-color: transparent !important; color: #633094 !important; font-weight: 700 !important;
 }}
 
-div.refresh-btn-container > div > button:hover {{
-    background-color: #633094 !important;
-    color: white !important;
-    box-shadow: 0 2px 8px rgba(99, 48, 148, 0.3) !important;
-}}
-
-/* GLOBAL TABS STYLING */
-.stTabs [data-baseweb="tab-list"] { justify-content: center; gap: 8px; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 15px; }
-
-/* PERMANENT POD TAB OUTLINES & DARK TEXT */
+/* FLOATING PILL TABS */
+.stTabs [data-baseweb="tab-list"] {{ justify-content: center; gap: 12px; background: transparent !important; padding-bottom: 25px !important; }}
+.stTabs [data-baseweb="tab-highlight"] {{ background-color: transparent !important; }}
 .stTabs [data-baseweb="tab"] {{
-    border-top: 1px solid #cbd5e1 !important;
-    border-left: 1px solid #cbd5e1 !important;
-    border-right: 1px solid #cbd5e1 !important;
-    margin: 0 4px !important;
-    transition: all 0.2s ease !important;
-    font-weight: 800 !important;
-    border-radius: 10px 10px 0 0 !important;
-    padding: 10px 20px !important;
-}}
-
-/* GLOBAL TABS CONTAINER - Clean & Floating */
-.stTabs [data-baseweb="tab-list"] {{ 
-    justify-content: center; 
-    gap: 12px; 
-    background: transparent !important; /* Removes the gray box background */
-    padding: 15px; 
-}}
-
-/* KILL THE DEFAULT UNDERLINE (The "Cutoff" source) */
-.stTabs [data-baseweb="tab-highlight"] {{
-    background-color: transparent !important;
-}}
-
-/* PERMANENT FLOATING PILLS - No flat bottoms */
-.stTabs [data-baseweb="tab"] {{
-    border-radius: 30px !important; /* Full rounded pill */
-    margin: 0 5px !important;
+    border-radius: 30px !important; margin: 0 5px !important; font-weight: 800 !important;
+    padding: 8px 25px !important; border: 2px solid transparent !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    font-weight: 800 !important;
-    padding: 8px 25px !important;
-    border: 2px solid transparent !important; /* Invisible border until set below */
 }}
 
-/* Global Tab */
+/* Tab Specific Colors */
 .stTabs [data-baseweb="tab"]:nth-of-type(1) {{ border: 2px solid #633094 !important; color: #3b1d58 !important; background: white !important; }}
-
-/* Blue Pod */
 .stTabs [data-baseweb="tab"]:nth-of-type(2) {{ border: 2px solid #3b82f6 !important; background-color: #f0f7ff !important; color: #1e3a8a !important; }}
-
-/* Green Pod */
 .stTabs [data-baseweb="tab"]:nth-of-type(3) {{ border: 2px solid #22c55e !important; background-color: #f0fdf4 !important; color: #064e3b !important; }}
-
-/* Orange Pod */
 .stTabs [data-baseweb="tab"]:nth-of-type(4) {{ border: 2px solid #f97316 !important; background-color: #fffaf5 !important; color: #7c2d12 !important; }}
-
-/* Purple Pod */
 .stTabs [data-baseweb="tab"]:nth-of-type(5) {{ border: 2px solid #a855f7 !important; background-color: #faf5ff !important; color: #4c1d95 !important; }}
-
-/* Red Pod */
 .stTabs [data-baseweb="tab"]:nth-of-type(6) {{ border: 2px solid #ef4444 !important; background-color: #fef2f2 !important; color: #7f1d1d !important; }}
 
-/* ACTIVE STATE - The "Full Glow" (No flat bottom border) */
 .stTabs [aria-selected="true"] {{ 
-    background-color: #ffffff !important;
-    transform: translateY(-4px) scale(1.05) !important;
+    background-color: #ffffff !important; transform: translateY(-4px) scale(1.05) !important;
     box-shadow: 0 10px 20px rgba(99, 48, 148, 0.25) !important; 
-    /* We removed the border-bottom here to keep the pill shape perfect */
 }}
 
-/* PRIMARY & SECONDARY BUTTONS */
-button[kind="primary"] {{
-    background-color: #76bc21 !important;
-    color: white !important;
-    height: 3.5rem !important;
-    font-size: 1.2rem !important;
-    font-weight: 800 !important;
-    border: none !important;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
-    transition: all 0.2s ease !important;
-}}
+/* CARD STYLING (Pill-Style for Global) */
+.pod-card-pill {{ transition: all 0.3s ease !important; }}
+.pod-card-pill:hover {{ transform: translateY(-5px); box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important; }}
 
-button[kind="secondary"] {{
-    background-color: #ffffff !important;
-    color: {TB_PURPLE} !important;
-    border: 2px solid {TB_PURPLE} !important;
-    height: 42px !important;
-    font-size: 0.9rem !important;
-    font-weight: 800 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
-    transition: all 0.2s ease !important;
-}}
+/* EXPANDERS & BUTTONS */
+div[data-testid="stExpander"] {{ border: 1px solid #cbd5e1 !important; border-radius: 10px !important; background-color: #ffffff !important; margin-bottom: 8px !important; }}
+button[kind="primary"] {{ background-color: #76bc21 !important; color: white !important; font-weight: 800 !important; border-radius: 8px !important; }}
 
-/* EXPANDER & LAYOUT TIGHTENING */
-div[data-testid="stColumn"]:has(.flush-hook) button[kind="secondary"] {{
-    margin-left: -1rem !important;
-    width: calc(100% + 1rem) !important;
-    border-top-left-radius: 0px !important;
-    border-bottom-left-radius: 0px !important;
-}}
-
-div[data-testid="stColumn"]:has(.expander-hook) div[data-testid="stExpander"] {{
-    border-top-right-radius: 0px !important;
-    border-bottom-right-radius: 0px !important;
-}}
-
-div[data-testid="stExpander"] {{ 
-    border: 1px solid #cbd5e1 !important; 
-    border-radius: 10px !important; 
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
-    margin-bottom: 8px !important;
-    background-color: #ffffff !important;
-}}
-
-div[data-testid="stExpander"] details summary p {{ 
-    color: #000000 !important; 
-    font-weight: 800 !important; 
-    font-size: 0.95rem !important;
-}}
-
-/* INPUTS & SELECTS */
-div[data-baseweb="select"] > div, 
-div[data-testid="stNumberInput"] input, 
-div[data-testid="stDateInput"] input,
-div[data-testid="stTextArea"] textarea {{ 
-    background-color: #ffffff !important; color: #000000 !important; border: 1.5px solid #cbd5e1 !important; border-radius: 8px !important;
-}}
-
-label, div[data-testid="stWidgetLabel"] p {{ color: #000000 !important; font-weight: 600 !important; }}
-
-/* MAP & FOLIUM */
-iframe[title="streamlit_folium.st_folium"] {{
-    border-radius: 15px !important;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05) !important;
-}}
-.stFolium {{ background: transparent !important; }}
-
+@keyframes pulse {{ 0% {{ opacity: 1; }} 50% {{ opacity: 0.4; }} 100% {{ opacity: 1; }} }}
+.loading-pulse {{ animation: pulse 1.5s infinite; font-weight: 800; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -993,41 +862,29 @@ if "ic_df" not in st.session_state:
         st.session_state.ic_df = pd.read_csv(url)
     except: st.error("Database connection failed.")
 
-# --- TOP HEADER & REFRESH ROW ---
-# Using [1, 10, 1] ensures the middle column is centered on the page
+# --- HEADER ROW ---
 col_left_space, col_main_title, col_ref = st.columns([1, 10, 1])
-
 with col_main_title:
-    # Title centered within the large middle column
-    st.markdown(f"""
-        <h1 style='margin-top: -10px;'>
-            Terraboost Media: Operations Dispatch Command Center
-        </h1>
-    """, unsafe_allow_html=True)
-
+    st.markdown("<h1>Terraboost Media: Operations Dispatch Command Center</h1>", unsafe_allow_html=True)
 with col_ref:
-    # Keep the button alignment logic we built
     st.markdown("<div style='margin-top: 26px;' class='refresh-btn-container'>", unsafe_allow_html=True)
     if st.button("🔄 Refresh", key="top_ref_btn"):
         st.cache_data.clear()
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Define tabs once for the entire app
 tabs = st.tabs(["Global", "Blue Pod", "Green Pod", "Orange Pod", "Purple Pod", "Red Pod"])
 
 # --- TAB 0: GLOBAL CONTROL ---
 with tabs[0]:
-    st.markdown("<h2 style='text-align:center;'>🌍 Global Command Overview</h2>", unsafe_allow_html=True)
+    st.markdown("## 🌍 Global Command Overview")
     
-    # 1. INITIALIZE BUTTON
     c_btn = st.columns([1,2,1])[1]
-    if c_btn.button("🚀 Initialize All Pods", key="global_init_btn", use_container_width=True):
-        st.session_state.trigger_pull = True # Set a flag to start the pull below the cards
+    if c_btn.button("🚀 Initialize All Pods", key="global_init", use_container_width=True):
+        st.session_state.trigger_pull = True
+        st.rerun()
 
     st.markdown("---")
-
-    # 2. THE STYLED OVERVIEW CARDS (Single Loop)
     cols = st.columns(len(POD_CONFIGS))
     pod_keys = list(POD_CONFIGS.keys())
     global_map = folium.Map(location=[39.8283, -98.5795], zoom_start=4, tiles="cartodbpositron")
@@ -1039,18 +896,17 @@ with tabs[0]:
             "Orange": {"border": "#f97316", "bg": "#fffaf5", "text": "#7c2d12"},
             "Purple": {"border": "#a855f7", "bg": "#faf5ff", "text": "#4c1d95"},
             "Red": {"border": "#ef4444", "bg": "#fef2f2", "text": "#7f1d1d"}
-        }.get(pod, {"border": "#633094", "bg": "#ffffff", "text": "#3b1d58"})
+        }.get(pod)
         
         with cols[i]:
             is_loading = st.session_state.get("current_loading_pod") == pod
             has_data = f"clusters_{pod}" in st.session_state
-            current_bg = "white" if has_data else colors['bg']
             
             st.markdown(f"""
                 <div class='pod-card-pill' style='border: 2px solid {colors['border']}; border-radius: 25px; 
-                            padding: 20px 15px; background: {current_bg}; box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+                            padding: 20px 15px; background: {"white" if has_data else colors['bg']}; 
                             text-align: center; height: 180px; display: flex; flex-direction: column; justify-content: center;'>
-                    <h4 style='margin: 0; color: {colors['text']}; font-size: 1.1rem; font-weight: 800;'>{pod} Pod</h4>
+                    <h4 style='margin: 0; color: {colors['text']}; font-weight: 800;'>{pod} Pod</h4>
             """, unsafe_allow_html=True)
             
             if is_loading:
@@ -1060,32 +916,32 @@ with tabs[0]:
                 st.markdown(f"""
                     <div style='margin-top: 10px;'>
                         <p style='margin: 0; font-size: 28px; font-weight: 800; color: {colors['text']};'>{len(pod_cls)}</p>
-                        <p style='margin: -5px 0 10px 0; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;'>Active Routes</p>
-                        <div style='display: flex; justify-content: space-around; border-top: 1px solid #f1f5f9;'>
-                            <div style='margin-top:8px;'><p style='margin:0; font-size:9px; color:#94a3b8; font-weight:800;'>TASKS</p><b style='color:{colors['text']};'>{sum(len(c['data']) for c in pod_cls)}</b></div>
-                            <div style='margin-top:8px;'><p style='margin:0; font-size:10px; color:#94a3b8; font-weight:800;'>STOPS</p><b style='color:{colors['text']};'>{sum(c['stops'] for c in pod_cls)}</b></div>
+                        <p style='margin: -5px 0 10px 0; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;'>Routes</p>
+                        <div style='display: flex; justify-content: space-around; border-top: 1px solid #f1f5f9; padding-top: 8px;'>
+                            <div><p style='margin:0; font-size:9px; color:#94a3b8; font-weight:800;'>TASKS</p><b>{sum(len(c['data']) for c in pod_cls)}</b></div>
+                            <div><p style='margin:0; font-size:9px; color:#94a3b8; font-weight:800;'>STOPS</p><b>{sum(c['stops'] for c in pod_cls)}</b></div>
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
-                for c in pod_cls: folium.CircleMarker(c['center'], radius=5, color=colors['border'], fill=True, fill_opacity=0.6).add_to(global_map)
+                for c in pod_cls: folium.CircleMarker(c['center'], radius=5, color=colors['border'], fill=True).add_to(global_map)
             else:
-                st.markdown(f"<p style='color: #cbd5e1; font-weight: 700; margin-top: 20px; font-size: 13px;'>OFFLINE</p>", unsafe_allow_html=True)
+                st.markdown("<p style='color: #cbd5e1; font-weight: 700; margin-top: 20px;'>OFFLINE</p>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-    # 3. THE LOADING ZONE (Progress Bar moves here)
+    # 3. THE LOADING ZONE (Progress Bar BELOW cards)
     if st.session_state.get("trigger_pull"):
         st.session_state.sent_db = fetch_sent_records_from_sheet()
-        prog_bar = st.progress(0, text="🎬 Initializing Global Data...")
+        prog = st.progress(0, text="🎬 Initializing Global Data...")
         for idx, p in enumerate(pod_keys):
             st.session_state.current_loading_pod = p 
-            process_pod(p, master_bar=prog_bar, pod_idx=idx, total_pods=len(pod_keys))
+            process_pod(p, master_bar=prog, pod_idx=idx, total_pods=len(pod_keys))
         st.session_state.current_loading_pod = None
         st.session_state.trigger_pull = False
         st.rerun()
 
-    # 4. MASTER MAP
     st.markdown("<br>### 🗺️ Master Route Map", unsafe_allow_html=True)
-    st_folium(global_map, height=500, use_container_width=True, key="global_overview_map")
+    st_folium(global_map, height=500, use_container_width=True, key="global_map")
 
+# 4. RENDER INDIVIDUAL POD TABS
 for i, pod in enumerate(["Blue", "Green", "Orange", "Purple", "Red"], 1):
     with tabs[i]: run_pod_tab(pod)
