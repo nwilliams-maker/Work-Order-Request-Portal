@@ -279,26 +279,31 @@ def load_ic_database(sheet_url):
     except: return None
 
 # --- CORE LOGIC ---
-def process_pod(pod_name):
+def process_pod(pod_name, master_bar=None, pod_idx=0, total_pods=1):
     config = POD_CONFIGS[pod_name]
-    progress_bar = st.progress(0, text=f"📥 Extracting {pod_name} tasks & evaluating dense routes...")
+    
+    # Logic to handle if we are doing a single pod or a global pull
+    pod_weight = 1.0 / total_pods
+    start_pct = pod_idx * pod_weight
+    
+    # Use the master bar if provided, otherwise create a local one
+    prog_bar = master_bar if master_bar else st.progress(0)
+    
+    def update_prog(rel_val, msg):
+        # Maps a 0.0-1.0 internal progress to the global start/end points
+        global_val = min(start_pct + (rel_val * pod_weight), 0.99)
+        prog_bar.progress(global_val, text=f"[{pod_name}] {msg}")
+
     try:
+        update_prog(0.0, "📥 Extracting tasks...")
         APPROVED_TEAMS = [
             "a - escalation", "b - boosted campaigns", "b - local campaigns", 
             "c - priority nationals", "cvs kiosk removal", "n - national campaigns"
         ]
 
         teams_res = requests.get("https://onfleet.com/api/v2/teams", headers=headers).json()
-        target_team_ids = []
-        esc_team_ids = []
-        
-        if isinstance(teams_res, list):
-            for team in teams_res:
-                t_name = str(team.get('name', '')).lower().strip()
-                if any(appr in t_name for appr in APPROVED_TEAMS):
-                    target_team_ids.append(team['id'])
-                if 'escalation' in t_name:
-                    esc_team_ids.append(team['id'])
+        target_team_ids = [t['id'] for t in teams_res if any(appr in str(t.get('name', '')).lower() for appr in APPROVED_TEAMS)]
+        esc_team_ids = [t['id'] for t in teams_res if 'escalation' in str(t.get('name', '')).lower()]
 
         all_tasks_raw = []
         url = f"https://onfleet.com/api/v2/tasks/all?state=0&from={int(time.time()*1000)-(80*24*3600*1000)}"
@@ -306,7 +311,8 @@ def process_pod(pod_name):
             res = requests.get(url, headers=headers).json()
             all_tasks_raw.extend(res.get('tasks', []))
             url = f"https://onfleet.com/api/v2/tasks/all?state=0&from={int(time.time()*1000)-(80*24*3600*1000)}&lastId={res['lastId']}" if res.get('lastId') else None
-            progress_bar.progress(min(len(all_tasks_raw)/500, 0.4))
+            # Update extraction progress (max 40% of this pod's slice)
+            update_prog(min(len(all_tasks_raw)/500 * 0.4, 0.4), "📡 Fetching task pages...")
 
         unique_tasks_dict = {t['id']: t for t in all_tasks_raw}
         all_tasks = list(unique_tasks_dict.values())
@@ -315,37 +321,17 @@ def process_pod(pod_name):
         for t in all_tasks:
             container = t.get('container', {})
             c_type = str(container.get('type', '')).upper()
-            
-            if c_type == 'TEAM' and container.get('team') not in target_team_ids:
-                continue
+            if c_type == 'TEAM' and container.get('team') not in target_team_ids: continue
 
             addr = t.get('destination', {}).get('address', {})
             stt = normalize_state(addr.get('state', ''))
             is_esc = (c_type == 'TEAM' and container.get('team') in esc_team_ids)
-            
             if not is_esc:
                 for m in (t.get('metadata') or []):
                     if 'escalation' in str(m.get('name', '')).lower() and str(m.get('value', '')).strip() in ['1', '1.0', 'true', 'yes']:
-                        is_esc = True
-                        break
+                        is_esc = True; break
             
-            tt_val = str(t.get('taskType', '')).strip()
-            if not tt_val:
-                for m in (t.get('metadata') or []):
-                    m_name = str(m.get('name', '')).lower().strip()
-                    if m_name in ['tasktype', 'task type']:
-                        tt_val = str(m.get('value', '')).strip()
-                        break
-            
-            if not tt_val and 'customFields' in t:
-                for cf in (t.get('customFields') or []):
-                    cf_name = str(cf.get('name', '')).lower().strip()
-                    if cf_name in ['tasktype', 'task type']:
-                        tt_val = str(cf.get('value', '')).strip()
-                        break
-                        
-            if not tt_val:
-                tt_val = str(t.get('taskDetails', '')).strip()
+            tt_val = str(t.get('taskType', '')).strip() or str(t.get('taskDetails', '')).strip()
             
             if stt in config['states']:
                 pool.append({
@@ -357,20 +343,16 @@ def process_pod(pod_name):
         
         clusters = []
         total_pool = len(pool)
-        
         ic_df = st.session_state.get('ic_df', pd.DataFrame())
-        v_ics_base = pd.DataFrame()
-        if not ic_df.empty:
-            v_ics_base = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy()
+        v_ics_base = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy() if not ic_df.empty else pd.DataFrame()
 
         while pool:
-            prog_val = 0.4 + (0.6 * (1 - (len(pool) / total_pool if total_pool > 0 else 1)))
-            progress_bar.progress(min(prog_val, 0.99), text=f"🗺️ Auto-routing {pod_name}... ({len(pool)} tasks remaining)")
+            # Routing progress (40% to 100% of this pod's slice)
+            rel_prog = 0.4 + (0.6 * (1 - (len(pool) / total_pool if total_pool > 0 else 1)))
+            update_prog(rel_prog, f"🗺️ Routing {len(pool)} remaining tasks...")
             
             anc = pool.pop(0)
-            candidates = []
-            rem = []
-            
+            candidates = []; rem = []
             for t in pool:
                 d = haversine(anc['lat'], anc['lon'], t['lat'], t['lon'])
                 if d <= 50: candidates.append((d, t))
@@ -379,55 +361,34 @@ def process_pod(pod_name):
             candidates.sort(key=lambda x: x[0])
             group = [anc] + [c[1] for c in candidates]
             
-            has_ic = False
-            closest_ic_loc = f"{anc['lat']},{anc['lon']}" 
-            
+            has_ic = False; closest_ic_loc = f"{anc['lat']},{anc['lon']}" 
             if not v_ics_base.empty:
                 dists = v_ics_base.apply(lambda x: haversine(anc['lat'], anc['lon'], x['Lat'], x['Lng']), axis=1)
                 valid_ics = v_ics_base[dists <= 60].copy()
                 if not valid_ics.empty:
-                    has_ic = True
-                    valid_ics['d'] = dists[dists <= 60]
+                    has_ic = True; valid_ics['d'] = dists[dists <= 60]
                     best_ic = valid_ics.sort_values('d').iloc[0]
                     closest_ic_loc = best_ic['Location']
 
             def check_viability(grp):
                 seen = set(); unique_locs = []
                 for x in grp:
-                    if x['full'] not in seen:
-                        seen.add(x['full']); unique_locs.append(x['full'])
+                    if x['full'] not in seen: seen.add(x['full']); unique_locs.append(x['full'])
                 if not unique_locs: return 0, 0
-                waypts = unique_locs[:25] 
-                
-                _, hrs, _ = get_gmaps(closest_ic_loc, waypts)
+                _, hrs, _ = get_gmaps(closest_ic_loc, unique_locs[:25])
                 pay = round(max(len(unique_locs) * 18.0, hrs * 25.0), 2)
-                avg = round(pay / len(unique_locs), 2) if len(unique_locs) > 0 else 0
-                return avg, len(unique_locs)
+                return round(pay / len(unique_locs), 2), len(unique_locs)
             
-            gate_avg, u_count = check_viability(group)
+            gate_avg, _ = check_viability(group)
             status = "Ready"
-            
-            if gate_avg > 23.00 and len(group) > 1:
-                removed_stops = []
-                passed = False
-                for _ in range(min(3, len(group) - 1)):
-                    removed_stops.append(group.pop()) 
+            if gate_avg > 23.00:
+                if len(group) > 1:
+                    removed = group.pop()
                     new_avg, _ = check_viability(group)
-                    if new_avg <= 23.00:
-                        passed = True
-                        break
-                
-                if passed:
-                    rem.extend(removed_stops)
-                    status = "Ready"
-                else:
-                    group.extend(removed_stops[::-1])
-                    status = "Flagged"
-            elif gate_avg > 23.00:
-                status = "Flagged"
-            
-            if not has_ic:
-                status = "Flagged"
+                    if new_avg <= 23.00: rem.append(removed)
+                    else: group.append(removed); status = "Flagged"
+                else: status = "Flagged"
+            if not has_ic: status = "Flagged"
             
             pool = rem
             clusters.append({
@@ -439,9 +400,9 @@ def process_pod(pod_name):
             })
             
         st.session_state[f"clusters_{pod_name}"] = clusters
-        progress_bar.empty()
+        if not master_bar: prog_bar.empty() # Only clear if it was a single pod pull
+
     except Exception as e:
-        progress_bar.empty()
         st.error(f"Error initializing {pod_name}: {str(e)}")
 
 def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
@@ -654,6 +615,7 @@ def run_pod_tab(pod_name):
     # Check if data exists for this pod
     if f"clusters_{pod_name}" not in st.session_state:
         if st.button(f"🚀 Initialize {pod_name} Data", key=f"init_{pod_name}"):
+            # We don't pass total_pods, so it defaults to a single-pod behavior
             process_pod(pod_name)
             st.rerun()
         return
@@ -979,7 +941,17 @@ with tabs[0]:
     c_btn = st.columns([1,2,1])[1]
     if c_btn.button("🚀 Initialize All Pods", use_container_width=True):
         st.session_state.sent_db = fetch_sent_records_from_sheet()
-        for p in POD_CONFIGS.keys(): process_pod(p)
+        
+        # ONE continuous progress bar for the entire process
+        master_prog = st.progress(0, text="🎬 Starting Global Data Pull...")
+        all_pods = list(POD_CONFIGS.keys())
+        
+        for i, p in enumerate(all_pods):
+            process_pod(p, master_bar=master_prog, pod_idx=i, total_pods=len(all_pods))
+        
+        # Final success state
+        master_prog.progress(1.0, text="✅ Data Pull Completed!")
+        time.sleep(1.5) # Give the user a second to see the "Completed" message
         st.rerun()
 
 for i, pod in enumerate(["Blue", "Green", "Orange", "Purple", "Red"], 1):
