@@ -918,7 +918,6 @@ def run_pod_tab(pod_name):
     total_tasks = sum(len(c['data']) for c in cls)
     total_stops = sum(c['stops'] for c in cls)
     total_routes = len(cls)
-    total_dispatched = len(sent) + len(accepted) + len(declined)
 
     # 🌟 NEW: Add ghosts to the Tracking Math
     total_accepted = len(accepted) + len(pod_ghosts)
