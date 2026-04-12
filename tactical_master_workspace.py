@@ -716,78 +716,95 @@ def run_pod_tab(pod_name):
     
     # FIX: Remove width=1100 and use container width for responsiveness
     st_folium(m, height=400, use_container_width=True, key=f"map_{pod_name}")
-# --- ICON KEY (LEGEND) ---
+    
+    # --- ICON KEY (LEGEND) ---
+    st.markdown("""
+        <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; background: #ffffff; padding: 12px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: -10px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; align-self: center; margin-right: 10px;">Route Key:</div>
+            <div style="font-size: 13px; cursor: help;" title="Route is within distance limits (<60mi) and standard rate (<$25/stop).">📍 Ready</div>
+            <div style="font-size: 13px; cursor: help;" title="Route is frozen and requires manual authorization before sending.">🔒 Action Required</div>
+            <div style="font-size: 13px; cursor: help;" title="The calculated price per stop is $25.00 or higher.">💰 High Rate</div>
+            <div style="font-size: 13px; cursor: help;" title="The closest contractor is more than 60 miles away.">📡 Long Distance</div>
+            <div style="font-size: 13px; cursor: help;" title="Route was flagged for review (e.g., low density).">🔴 Flagged</div>
+            <div style="font-size: 13px; cursor: help;" title="Priority: Contains escalated tasks.">⭐ Escalated</div>
+            <div style="font-size: 13px; cursor: help;" title="Route request has been sent to the contractor.">✉️ Sent</div>
+        </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("---")
 
-    # ==========================================
-    # SECTION 1: DISPATCH
-    # ==========================================
-    st.markdown("<h3 style='color: #000000; margin-bottom: 5px;'>🚀 Dispatch</h3>", unsafe_allow_html=True)
-    t_ready, t_flagged = st.tabs(["📥 Ready", "⚠️ Flagged"])
+    # Create two equal-width columns for side-by-side layout
+    col_left, col_right = st.columns(2)
 
-    with t_ready:
-        if not ready: st.info("No tasks ready for dispatch.")
-        for i, c in enumerate(ready):
-            # --- PRE-CALCULATE BADGES ---
-            badges = ""
-            if not ic_df.empty:
-                v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy()
-                if not v_ics.empty:
-                    v_ics['d'] = v_ics.apply(lambda x: haversine(c['center'][0], c['center'][1], x['Lat'], x['Lng']), axis=1)
-                    closest_ic = v_ics.sort_values('d').iloc[0]
-                    _, hrs, _ = get_gmaps(closest_ic['Location'], [t['full'] for t in c['data'][:25]])
-                    est_pay = max(c['stops'] * 18.0, hrs * 25.0)
-                    est_rate = est_pay / c['stops'] if c['stops'] > 0 else 0
+    with col_left:
+        # ==========================================
+        # SECTION 1: DISPATCH (LEFT SIDE)
+        # ==========================================
+        st.markdown("<h3 style='color: #000000; margin-bottom: 5px;'>🚀 Dispatch</h3>", unsafe_allow_html=True)
+        t_ready, t_flagged = st.tabs(["📥 Ready", "⚠️ Flagged"])
+
+        with t_ready:
+            if not ready: st.info("No tasks ready for dispatch.")
+            for i, c in enumerate(ready):
+                # --- PRE-CALCULATE BADGES ---
+                badges = ""
+                if not ic_df.empty:
+                    v_ics = ic_df[~ic_df.astype(str).apply(lambda x: x.str.contains('Field Agent', case=False, na=False).any(), axis=1)].dropna(subset=['Lat', 'Lng']).copy()
+                    if not v_ics.empty:
+                        v_ics['d'] = v_ics.apply(lambda x: haversine(c['center'][0], c['center'][1], x['Lat'], x['Lng']), axis=1)
+                        closest_ic = v_ics.sort_values('d').iloc[0]
+                        _, hrs, _ = get_gmaps(closest_ic['Location'], [t['full'] for t in c['data'][:25]])
+                        est_pay = max(c['stops'] * 18.0, hrs * 25.0)
+                        est_rate = est_pay / c['stops'] if c['stops'] > 0 else 0
+                        
+                        if est_rate >= 25.0: badges += " 💰"
+                        if closest_ic['d'] > 60: badges += " 📡"
+                        if est_rate >= 25.0 or closest_ic['d'] > 60: badges = " 🔒" + badges
+
+                esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
+                with st.expander(f"{badges} 📍 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
+                    render_dispatch(i, c, pod_name)
                     
-                    if est_rate >= 25.0: badges += " 💰"
-                    if closest_ic['d'] > 60: badges += " 📡"
-                    if est_rate >= 25.0 or closest_ic['d'] > 60: badges = " 🔒" + badges
+        with t_flagged:
+            if not review: st.info("No flagged tasks requiring review.")
+            for i, c in enumerate(review):
+                esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
+                with st.expander(f"🔒 🔴 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
+                    render_dispatch(i+1000, c, pod_name)
 
-            esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-            with st.expander(f"{badges} 📍 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
-                render_dispatch(i, c, pod_name)
-                
-    with t_flagged:
-        if not review: st.info("No flagged tasks requiring review.")
-        for i, c in enumerate(review):
-            esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-            with st.expander(f"🔒 🔴 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
-                render_dispatch(i+1000, c, pod_name)
+    with col_right:
+        # ==========================================
+        # SECTION 2: AWAITING CONFIRMATION (RIGHT SIDE)
+        # ==========================================
+        st.markdown("<h3 style='color: #000000; margin-bottom: 5px;'>⏳ Awaiting Confirmation</h3>", unsafe_allow_html=True)
+        t_sent, t_acc, t_dec = st.tabs(["✉️ Sent (Pending)", "✅ Accepted", "❌ Declined"])
 
-    st.markdown("<br>", unsafe_allow_html=True)
+        with t_sent:
+            if not sent: st.info("No pending routes sent.")
+            for i, c in enumerate(sent):
+                ic_name = c.get('contractor_name', 'Unknown')
+                ts_label = f" | {c.get('route_ts', '')}" if c.get('route_ts') else ""
+                esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
+                with st.expander(f"✉️ {ic_name}{ts_label} | {c['city']}, {c['state']}{esc_pill}"): 
+                    render_dispatch(i+500, c, pod_name, is_sent=True)
 
-    # ==========================================
-    # SECTION 2: AWAITING CONFIRMATION
-    # ==========================================
-    st.markdown("<h3 style='color: #000000; margin-bottom: 5px;'>⏳ Awaiting Confirmation</h3>", unsafe_allow_html=True)
-    t_sent, t_acc, t_dec = st.tabs(["✉️ Sent (Pending)", "✅ Accepted", "❌ Declined"])
+        with t_acc:
+            if not accepted: st.info("Waiting for portal acceptances...")
+            for i, c in enumerate(accepted):
+                ic_name = c.get('contractor_name', 'Unknown')
+                ts_label = f" | {c.get('route_ts', '')}" if c.get('route_ts') else ""
+                with st.expander(f"✅ {ic_name}{ts_label} | {c['city']}, {c['state']}"):
+                    st.success(f"Route accepted. Onfleet assignment should be complete.")
+                    render_dispatch(i+2000, c, pod_name, is_sent=True)
 
-    with t_sent:
-        if not sent: st.info("No pending routes sent.")
-        for i, c in enumerate(sent):
-            ic_name = c.get('contractor_name', 'Unknown')
-            ts_label = f" | {c.get('route_ts', '')}" if c.get('route_ts') else ""
-            esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-            with st.expander(f"✉️ {ic_name}{ts_label} | {c['city']}, {c['state']}{esc_pill}"): 
-                render_dispatch(i+500, c, pod_name, is_sent=True)
-
-    with t_acc:
-        if not accepted: st.info("Waiting for portal acceptances...")
-        for i, c in enumerate(accepted):
-            ic_name = c.get('contractor_name', 'Unknown')
-            ts_label = f" | {c.get('route_ts', '')}" if c.get('route_ts') else ""
-            with st.expander(f"✅ {ic_name}{ts_label} | {c['city']}, {c['state']}"):
-                st.success(f"Route accepted. Onfleet assignment should be complete.")
-                render_dispatch(i+2000, c, pod_name, is_sent=True)
-
-    with t_dec:
-        if not declined: st.info("No declined routes.")
-        for i, c in enumerate(declined):
-            ic_name = c.get('contractor_name', 'Unknown')
-            ts_label = f" | {c.get('route_ts', '')}" if c.get('route_ts') else ""
-            with st.expander(f"❌ {ic_name}{ts_label} | {c['city']}, {c['state']}"):
-                st.error("Route declined. Select a new contractor below to generate a fresh link.")
-                render_dispatch(i+3000, c, pod_name, is_declined=True)
+        with t_dec:
+            if not declined: st.info("No declined routes.")
+            for i, c in enumerate(declined):
+                ic_name = c.get('contractor_name', 'Unknown')
+                ts_label = f" | {c.get('route_ts', '')}" if c.get('route_ts') else ""
+                with st.expander(f"❌ {ic_name}{ts_label} | {c['city']}, {c['state']}"):
+                    st.error("Route declined. Select a new contractor below to generate a fresh link.")
+                    render_dispatch(i+3000, c, pod_name, is_declined=True)
 # --- START ---
 if "ic_df" not in st.session_state:
     try:
