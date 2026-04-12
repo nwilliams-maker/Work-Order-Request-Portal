@@ -1109,7 +1109,7 @@ with tabs[0]:
     pod_keys = list(POD_CONFIGS.keys())
     global_map = folium.Map(location=[39.8283, -98.5795], zoom_start=4, tiles="cartodbpositron")
     
-    current_sent_db = st.session_state.get('sent_db', {})
+    current_sent_db = fetch_sent_records_from_sheet()
 
     for i, pod in enumerate(pod_keys):
         # Python Colors Mapping
