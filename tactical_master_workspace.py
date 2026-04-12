@@ -21,11 +21,11 @@ ACCEPTED_ROUTES_GID = "934075207"
 DECLINED_ROUTES_GID = "600909788"
 
 
-# Terraboost Media Brand Palette
+# --- THE "MIDDLE GROUND" PALETTE ---
+TB_APP_BG = "#cbd5e1"  # Soft Slate Gray (reduces glare significantly)
 TB_PURPLE = "#633094"
 TB_GREEN = "#76bc21"
-TB_APP_BG = "#cbd5e1"
-TB_HOVER_GRAY = "#e2e8f0"
+TB_HOVER_GRAY = "#94a3b8" # Deeper gray for hover states
 
 # Status Fills
 TB_GREEN_FILL = "#dcfce7" # Ready
