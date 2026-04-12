@@ -509,16 +509,19 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
 
     ic_opts = {f"{r['Name']} ({round(r['d'],1)} mi)": r for _, r in v_ics.iterrows()}
     
-    # --- 4. DYNAMIC PRICING SYNC LOGIC ---
+    # --- 3. DYNAMIC PRICING SYNC LOGIC ---
     def sync_on_total():
+        # User edited TOTAL COMP
         val = st.session_state[pay_key]
         st.session_state[rate_key] = round(val / cluster['stops'], 2) if cluster['stops'] > 0 else 0
 
     def sync_on_rate():
+        # User edited RATE PER STOP
         val = st.session_state[rate_key]
         st.session_state[pay_key] = round(val * cluster['stops'], 2)
 
     def update_for_new_contractor():
+        # Reset pricing floor when a DIFFERENT contractor is selected
         selected_label = st.session_state[sel_key]
         if selected_label != st.session_state.get(last_sel_key):
             ic_new = ic_opts[selected_label]
@@ -528,7 +531,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
             st.session_state[rate_key] = round(new_pay / cluster['stops'], 2) if cluster['stops'] > 0 else 0
             st.session_state[last_sel_key] = selected_label
 
-    # Initial Setup 
+    # Initial Setup (First time card is seen)
     if pay_key not in st.session_state:
         first_ic_label = list(ic_opts.keys())[0]
         ic_init = ic_opts[first_ic_label]
@@ -543,8 +546,10 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
     col_a, col_b, col_c, col_d = st.columns([1.5, 1, 1, 1])
     
     with col_a:
+        # The callback is attached here to force the background math to run
         st.selectbox("Contractor", list(ic_opts.keys()), key=sel_key, on_change=update_for_new_contractor)
     
+    # Get current state values
     ic = ic_opts[st.session_state[sel_key]]
     mi, hrs, t_str = get_gmaps(ic['Location'], list(stop_metrics.keys())[:25])
     
@@ -569,6 +574,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         st.date_input("Deadline", datetime.now().date()+timedelta(14), key=f"dd_{cluster_hash}", disabled=not is_unlocked)
 
     # --- 6. UPDATED FINANCIALS & PREVIEW ---
+    # Fetch final values from session state to ensure they match the UI dynamically
     final_pay = st.session_state[pay_key]
     final_rate = st.session_state[rate_key]
 
@@ -586,54 +592,31 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
            f"Metrics:\n- Stops: {cluster['stops']}\n- Mileage: {mi} mi\n- Time: {t_str}\n- Compensation: ${final_pay:.2f}\n\n"
            f"Authorize here:\n{PORTAL_BASE_URL}?route={link_id}&v2=true")
     
+    # This forces Streamlit to wipe the old text and inject the fresh math/dates instantly
     tx_key = f"tx_{cluster_hash}_preview"
     st.session_state[tx_key] = sig_preview 
     
     st.text_area("Email Content Preview", height=180, key=tx_key, disabled=not is_unlocked)
 
-    # --- 7. BUTTON LAYOUT ---
+    # --- 7. BUTTON LAYOUT (WITH REVOKE FEATURE) ---
     btn_label = "🚀 GENERATE LINK & OPEN GMAIL" if (not real_id or is_declined) else "🚀 OPEN IN GMAIL (RESEND)"
 
-    # Clean, single button taking up the full width
-    if st.button(btn_label, type="primary", key=f"gbtn_{cluster_hash}", disabled=not is_unlocked, use_container_width=True):
-        final_route_id = real_id
-        with st.spinner("Generating secure link..."):
-            if not final_route_id or is_declined:
-                home = ic['Location']
-                payload = {
-                    "icn": ic['Name'], "ice": ic['Email'], "wo": wo_val, 
-                    "due": str(due), "comp": final_pay, "lCnt": cluster['stops'], "mi": mi, "time": t_str, "phone": str(ic['Phone']),
-                    "locs": " | ".join([home] + list(stop_metrics.keys()) + [home]),
-                    "taskIds": ",".join(task_ids),
-                    "tCnt": len(task_ids),
-                    "jobOnly": " | ".join([f"{a} {pill}" for a, pill in loc_pills.items()])
-                }
-                res = requests.post(GAS_WEB_APP_URL, json={"action": "saveRoute", "payload": payload}).json()
-                if res.get("success"):
-                    final_route_id = res.get("routeId")
-                    st.session_state[sync_key] = final_route_id
-                else:
-                    st.error("Failed to generate link."); st.stop()
-
-        # Build final signature with final_route_id
-        final_sig = sig_preview.replace("LINK_PENDING", final_route_id)
-        gmail_url = f"https://mail.google.com/mail/?view=cm&fs=1&to={ic['Email']}&su=Route Request: {ic['Name']}&body={requests.utils.quote(final_sig)}"
-        
-        st.components.v1.html(f"<script>window.open('{gmail_url}', '_blank');</script>", height=0)
-        
-        # State updates for UI
-        now_ts = datetime.now().strftime('%m/%d %I:%M %p')
-        st.session_state[f"sent_ts_{cluster_hash}"] = now_ts
-        st.session_state[f"contractor_{cluster_hash}"] = ic['Name']
-        st.session_state[f"route_state_{cluster_hash}"] = "email_sent"
-        st.session_state[f"reverted_{cluster_hash}"] = False # Clear the revert flag since it's sent again
-        
-        timer_placeholder = st.empty()
-        for sec in range(10, 0, -1):
-            timer_placeholder.success(f"✅ Link Generated! Moving card in {sec}s...")
-            time.sleep(1)
-        st.rerun()
-        
+    # If the route is sitting in the "Sent" tab, split the layout to show the Revoke button
+    if is_sent and not is_declined:
+        c1, c2 = st.columns([3, 1])
+        target_col = c1
+        with c2:
+            if st.button("↩️ Revoke Route", key=f"rev_{cluster_hash}", use_container_width=True):
+                # Log the contractor and time
+                hist = st.session_state.get(f"history_{cluster_hash}", [])
+                hist.append(f"{cluster.get('contractor_name', 'Unknown')} ({datetime.now().strftime('%m/%d')})")
+                st.session_state[f"history_{cluster_hash}"] = hist
+                
+                # Flag as reverted and destroy the old link
+                st.session_state[f"reverted_{cluster_hash}"] = True
+                if sync_key in st.session_state:
+                    del st.session_state[sync_key]
+                st.rerun()
     else:
         target_col = st.container()
 
