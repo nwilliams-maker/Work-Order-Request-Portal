@@ -683,9 +683,17 @@ def run_pod_tab(pod_name):
     ic_df = st.session_state.get('ic_df', pd.DataFrame())
     
     # ... rest of your header code ...
+    # Grab the matching "Midnight" text color for the current pod
+    text_color = {
+        "Blue": "#1e3a8a",
+        "Green": "#064e3b",
+        "Orange": "#7c2d12",
+        "Purple": "#4c1d95",
+        "Red": "#7f1d1d"
+    }.get(pod_name, "#633094") # Defaults to TB Purple if not found
     
-    # Standard Centered Header
-    st.markdown(f"<h2 style='text-align:center;'>{pod_name} Pod Dashboard</h2>", unsafe_allow_html=True)
+    # Inject the dynamic color into the centered header
+    st.markdown(f"<h2 style='color: {text_color}; text-align:center;'>{pod_name} Pod Dashboard</h2>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Check if data exists for this pod
