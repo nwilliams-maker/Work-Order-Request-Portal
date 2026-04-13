@@ -824,7 +824,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         if curr_rate >= 25.0: reasons.append(f"High Rate (${curr_rate})")
         if ic['d'] > 60: reasons.append(f"Distance ({round(ic['d'],1)}mi)")
         if cluster['status'] == 'Flagged': reasons.append("Flagged Route")
-        st.markdown(f"""<div style="background-color:#fef2f2; border:1px solid #ef4444; padding:10px; border-radius:8px; margin-bottom:15px;"><span style="color:#b91c1c; font-weight:800;">🔒 ACTION REQUIRED:</span> <span style="color:#7f1d1d;">{" & ".join(reasons)}</span></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="background-color:#fef2f2; border:1px solid #ef4444; padding:10px; border-radius:8px; margin-bottom:15px;"><span style="color:#b91c1c; font-weight:800;">&#128274; ACTION REQUIRED:</span> <span style="color:#7f1d1d;">{" & ".join(reasons)}</span></div>""", unsafe_allow_html=True)
         is_unlocked = st.checkbox("Authorize Premium Rate / Distance", key=f"lock_{cluster_hash}")
 
     with col_b:
