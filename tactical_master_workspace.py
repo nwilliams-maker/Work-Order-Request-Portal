@@ -362,6 +362,48 @@ div.refresh-btn-container > div > button,
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
 }}
 
+/* =========================================
+   FIX NESTED TABS (PILL SHAPE & COLORS)
+   ========================================= */
+/* Un-glue the right side tabs to look like separate pills */
+div[data-testid="stColumn"] div[data-baseweb="tab-list"] {{
+    gap: 12px !important;
+    background: transparent !important;
+    border-bottom: none !important;
+}}
+
+/* Force all 4 corners to be rounded (breaking Streamlit's glued block) */
+div[data-testid="stColumn"] div[data-baseweb="tab"] {{
+    border-radius: 30px !important;
+    border-top-left-radius: 30px !important;
+    border-bottom-left-radius: 30px !important;
+    border-top-right-radius: 30px !important;
+    border-bottom-right-radius: 30px !important;
+    padding: 8px 18px !important;
+    margin: 0 !important;
+    border: 2px solid transparent !important;
+}}
+
+/* Hide the native grey connecting slider */
+div[data-testid="stColumn"] div[data-baseweb="tab-highlight"] {{
+    display: none !important;
+}}
+
+/* LEFT COLUMN COLORS: Ready (Green) & Flagged (Red) */
+div[data-testid="stColumn"]:nth-child(1) div[data-baseweb="tab"]:nth-child(1) {{ border-color: #22c55e !important; color: #064e3b !important; background-color: #f0fdf4 !important; }}
+div[data-testid="stColumn"]:nth-child(1) div[data-baseweb="tab"]:nth-child(2) {{ border-color: #ef4444 !important; color: #7f1d1d !important; background-color: #fef2f2 !important; }}
+
+/* RIGHT COLUMN COLORS: Sent (Blue), Accepted (Green), Declined (Red) */
+div[data-testid="stColumn"]:nth-child(2) div[data-baseweb="tab"]:nth-child(1) {{ border-color: #3b82f6 !important; color: #1e3a8a !important; background-color: #f0f7ff !important; }}
+div[data-testid="stColumn"]:nth-child(2) div[data-baseweb="tab"]:nth-child(2) {{ border-color: #22c55e !important; color: #064e3b !important; background-color: #f0fdf4 !important; }}
+div[data-testid="stColumn"]:nth-child(2) div[data-baseweb="tab"]:nth-child(3) {{ border-color: #ef4444 !important; color: #7f1d1d !important; background-color: #fef2f2 !important; }}
+
+/* Active Pill Glow */
+div[data-testid="stColumn"] div[data-baseweb="tab"][aria-selected="true"] {{
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.08) !important;
+}}
+
 </style>
 """, unsafe_allow_html=True)
 
