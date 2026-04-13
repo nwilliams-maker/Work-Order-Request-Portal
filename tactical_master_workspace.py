@@ -424,11 +424,11 @@ div.element-container:has(.awaiting-tabs-hook) + div.element-container [aria-sel
 def background_sheet_move(cluster_hash, payload_json):
     try:
         # This runs safely in a separate invisible thread
-        requests.post(GAS_WEB_APP_URL, json={
+        requests.post(GAS_WEB_APP_URL, json={{
             "action": "revokeRoute", 
             "cluster_hash": cluster_hash,
             "payload": payload_json
-        })
+        }})
     except:
         pass
 
@@ -447,6 +447,11 @@ def instant_revoke_handler(cluster_hash, ic_name, payload_json):
     
     # 4. Trigger the safe Background Thread (No more crashing!)
     threading.Thread(target=background_sheet_move, args=(cluster_hash, payload_json)).start()
+
+</style>
+""", unsafe_allow_html=True)
+
+def background_sheet_move(cluster_hash, payload_json):
 # --- UTILITIES ---
 def haversine(lat1, lon1, lat2, lon2):
     R = 3958.8
