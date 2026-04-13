@@ -226,14 +226,20 @@ div.element-container:has(div[data-testid="stHorizontalBlock"]:has(.flush-hook))
     margin-bottom: -12px !important; 
 }}
 
-/* 2. MAIN EXPANDER CONTAINER */
+/* Main Expander Container */
 div[data-testid="stExpander"] {{ 
     border: 1px solid #cbd5e1 !important; 
     border-radius: 10px !important; 
     box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
-    margin-bottom: 0px !important; /* Killed internal margin */
+    margin-bottom: 0px !important;
     background-color: #ffffff !important;
     overflow: hidden !important;
+}}
+
+/* 🌟 AGGRESSIVE VERTICAL GAP SQUASH */
+div.element-container:has(div[data-testid="stExpander"]),
+div[data-testid="stHorizontalBlock"]:has(.expander-hook) {{
+    margin-bottom: -14px !important;
 }}
 
 /* 3. PERFECT ROW ALIGNMENT */
