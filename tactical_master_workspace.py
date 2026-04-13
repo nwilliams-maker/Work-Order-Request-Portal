@@ -236,9 +236,16 @@ div[data-testid="stExpander"] {{
     border: 1px solid #cbd5e1 !important; 
     border-radius: 10px !important; 
     box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
-    margin-bottom: 0px !important;
+    margin-bottom: 0px !important; /* Set to 0 to kill the internal margin */
     background-color: #ffffff !important;
     overflow: hidden !important;
+}}
+
+/* 🌟 AGGRESSIVE VERTICAL GAP SQUASH */
+/* Pulls the rows closer together to eliminate Streamlit's native vertical gap */
+div.element-container:has(div[data-testid="stExpander"]),
+div[data-testid="stHorizontalBlock"]:has(.expander-hook) {{
+    margin-bottom: -14px !important;
 }}
 
 /* Lock Expander Header to exactly match the button */
