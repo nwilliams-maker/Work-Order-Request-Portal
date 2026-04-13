@@ -1040,7 +1040,7 @@ def run_pod_tab(pod_name):
         # ==========================================
         # SECTION 1: DISPATCH (LEFT SIDE - CENTERED)
         # ==========================================
-        st.markdown(f"<div style='font-size: 1.5rem; font-weight: 800; color: #90EE90; margin-bottom: 5px; text-align: center;'>🚀 Dispatch</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size: 1.5rem; font-weight: 800; color: {TB_PURPLE}; margin-bottom: 5px; text-align: center;'>🚀 Dispatch</div>", unsafe_allow_html=True)
         t_ready, t_flagged = st.tabs(["📥 Ready", "⚠️ Flagged"])
 
         with t_ready:
