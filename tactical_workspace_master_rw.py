@@ -395,19 +395,32 @@ div[data-testid="stColumn"]:nth-child(2) div[data-testid="stTabs"] [data-baseweb
 }}
 
 
-/* TIGHTEN GAPS & ALIGN COLUMNS */
-div[data-testid="stExpander"] {{ margin-bottom: 2px !important; }}
-div[data-testid="stHorizontalBlock"] {{ align-items: flex-start !important; }}
+/* =========================================
+   ALIGNMENT & GAPS
+   ========================================= */
+/* Aggressively kill the white space between rows */
+div[data-testid="stVerticalBlock"] {{ gap: 0rem !important; }}
+div[data-testid="stExpander"] {{ margin-top: 0px !important; margin-bottom: 2px !important; }}
 
-/* SMALL RIGHT-ALIGNED REVOKE BUTTON */
-div.mini-btn button[kind="secondary"] {{
-    height: 26px !important;
-    min-height: 26px !important;
-    padding: 0 10px !important;
-    font-size: 11px !important;
-    float: right !important;
-    margin-top: 10px !important;
-    width: auto !important;
+/* Stop the columns on the right from adding extra padding */
+[data-testid="stHorizontalBlock"] {{ 
+    align-items: center !important; 
+    padding-bottom: 0px !important;
+}}
+
+/* =========================================
+   MINI REVOKE BUTTON
+   ========================================= */
+/* Targets the button to make it thin and single-line */
+div.mini-btn-container button, div.mini-btn button {{
+    height: 38px !important; 
+    min-height: 38px !important;
+    padding: 0px 8px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important; /* CRITICAL: Stops "Revoke" from wrapping to a second line */
+    margin-top: 0px !important;
+    border-radius: 6px !important;
+    width: 100% !important;
 }}
 
 </style>
