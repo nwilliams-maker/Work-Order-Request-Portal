@@ -10,19 +10,26 @@ from datetime import datetime, timedelta
 from streamlit_folium import st_folium
 import folium
 import threading
-import os  # Ensure this is at the very top of your file!
+import os
 
 # --- CONFIG & CREDENTIALS ---
-# Using .get() prevents the "SecretNotFoundError" crash
-ONFLEET_KEY = st.secrets.get("ONFLEET_KEY") or os.environ.get("ONFLEET_KEY")
-GOOGLE_MAPS_KEY = st.secrets.get("GOOGLE_MAPS_KEY") or os.environ.get("GOOGLE_MAPS_KEY")
+# We check the Environment (Railway) FIRST to avoid the Streamlit Secrets crash
+ONFLEET_KEY = os.environ.get("ONFLEET_KEY")
+GOOGLE_MAPS_KEY = os.environ.get("GOOGLE_MAPS_KEY")
 
-if not ONFLEET_KEY:
-    st.error("Missing ONFLEET_KEY. Please check Railway Variables.")
-    st.stop()
+# If Railway didn't have them, ONLY THEN do we try st.secrets (and we catch the error)
+if not ONFLEET_KEY or not GOOGLE_MAPS_KEY:
+    try:
+        ONFLEET_KEY = ONFLEET_KEY or st.secrets.get("ONFLEET_KEY")
+        GOOGLE_MAPS_KEY = GOOGLE_MAPS_KEY or st.secrets.get("GOOGLE_MAPS_KEY")
+    except Exception:
+        # If we get here, it means no secrets file exists AND Railway variables are missing
+        pass
 
-if not GOOGLE_MAPS_KEY:
-    st.error("Missing GOOGLE_MAPS_KEY. Please check Railway Variables.")
+# Final check to keep the app from crashing with a traceback
+if not ONFLEET_KEY or not GOOGLE_MAPS_KEY:
+    st.error("🔑 **API Keys Missing!**")
+    st.info("I couldn't find your keys in Railway's 'Variables' tab. Please double-check that you added ONFLEET_KEY and GOOGLE_MAPS_KEY there.")
     st.stop()
 
 PORTAL_BASE_URL = "https://nwilliams-maker.github.io/Route-Authorization-Portal/portal-v2.html"
