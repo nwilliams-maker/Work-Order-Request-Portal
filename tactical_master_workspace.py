@@ -1,3 +1,4 @@
+
 import streamlit as st
 import requests
 import base64
@@ -85,7 +86,6 @@ st.markdown(f"""
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 .stApp {{ background-color: {TB_APP_BG} !important; color: #000000 !important; font-family: 'Inter', sans-serif !important; }}
 .main .block-container {{ max-width: 1100px !important; padding-top: 2rem; }}
-)
 
 /* GLOBAL TABS CONTAINER - Clean & Floating with Bottom Line */
 .stTabs [data-baseweb="tab-list"] {{ 
@@ -216,54 +216,49 @@ button[kind="secondary"] {{
     transition: all 0.2s ease !important;
 }}
 
-/* EXPANDER & LAYOUT TIGHTENING */
-div[data-testid="stColumn"]:has(.flush-hook) button {{
-    margin-left: -1rem !important;
-    width: calc(100% + 1rem) !important;
-    border-top-left-radius: 0px !important;
-    border-bottom-left-radius: 0px !important;
-    height: 46px !important; /* Locks Revoke Button Height */
-    min-height: 46px !important;
+/* =========================================
+   EXPANDER & LAYOUT TIGHTENING (SQUASHED GAPS & CENTERED)
+   ========================================= */
+
+/* 1. SQUASH VERTICAL GAPS: Kill Streamlit's default 16px gap between rows */
+div.element-container:has(div[data-testid="stExpander"]),
+div.element-container:has(div[data-testid="stHorizontalBlock"]:has(.flush-hook)) {{
+    margin-bottom: -12px !important; 
 }}
 
-div[data-testid="stColumn"]:has(.expander-hook) div[data-testid="stExpander"] {{
-    border-top-right-radius: 0px !important;
-    border-bottom-right-radius: 0px !important;
-    border-right: 0px !important; /* Removes double border where they touch */
-}}
-
-/* Main Expander Container */
+/* 2. MAIN EXPANDER CONTAINER */
 div[data-testid="stExpander"] {{ 
     border: 1px solid #cbd5e1 !important; 
     border-radius: 10px !important; 
     box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
-    margin-bottom: 0px !important; /* Set to 0 to kill the internal margin */
+    margin-bottom: 0px !important; /* Killed internal margin */
     background-color: #ffffff !important;
     overflow: hidden !important;
 }}
 
-/* 🌟 AGGRESSIVE VERTICAL GAP SQUASH */
-/* Pulls the rows closer together to eliminate Streamlit's native vertical gap */
-div.element-container:has(div[data-testid="stExpander"]),
-div[data-testid="stHorizontalBlock"]:has(.expander-hook) {{
-    margin-bottom: -14px !important;
+/* 3. PERFECT ROW ALIGNMENT */
+div[data-testid="stHorizontalBlock"]:has(.flush-hook) {{
+    align-items: flex-start !important; /* Anchors the button to the top so it doesn't stretch weirdly when the expander opens */
 }}
 
-/* Lock Expander Header to exactly match the button */
-div[data-testid="stExpander"] details summary {{
-    height: 46px !important;
-    min-height: 46px !important;
-    padding-top: 0px !important;
-    padding-bottom: 0px !important;
-}}
-div[data-testid="stExpander"] details summary p {{
-    margin: 0 !important; /* Centers text vertically */
+/* 4. FLUSH BUTTON MECHANICS (Closes the gap between Card and Button) */
+div[data-testid="stColumn"]:has(.flush-hook) {{
+    padding-left: 0px !important; /* Kills the column gap */
 }}
 
-/* 🌟 AGGRESSIVE VERTICAL GAP SQUASH */
-div.element-container:has(div[data-testid="stExpander"]),
-div[data-testid="stHorizontalBlock"]:has(.expander-hook) {{
-    margin-bottom: -14px !important;
+div[data-testid="stColumn"]:has(.flush-hook) button {{
+    width: calc(100% + 5px) !important;
+    margin-left: -5px !important; /* Pulls it tight against the expander */
+    border-top-left-radius: 0px !important;
+    border-bottom-left-radius: 0px !important;
+    height: 48px !important; /* Locks height to perfectly match the collapsed expander */
+}}
+
+/* Square off the right side of the expander to connect to the button */
+div[data-testid="stColumn"]:has(.expander-hook) div[data-testid="stExpander"] {{
+    border-top-right-radius: 0px !important;
+    border-bottom-right-radius: 0px !important;
+    border-right: none !important; /* Prevents double-thick borders where they touch */
 }}
 
 /* Header text color */
@@ -361,74 +356,17 @@ div.refresh-btn-container > div > button,
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
 }}
 
-/* =========================================
-   FIX VERTICAL OFFSET (Hide the Invisible Hooks)
-   ========================================= */
-div.element-container:has(.dispatch-tabs-hook),
-div.element-container:has(.awaiting-tabs-hook),
-div.element-container:has(.expander-hook),
-div.element-container:has(.flush-hook) {{
-    position: absolute !important;
-    visibility: hidden !important;
-    height: 0px !important;
-    margin: 0px !important;
-}}
-
-/* =========================================
-   NESTED TABS (STATUS PILLS FOR DISPATCH & AWAITING)
-   ========================================= */
-/* Space the pills out */
-div.element-container:has(.dispatch-tabs-hook) + div.element-container [data-baseweb="tab-list"],
-div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab-list"] {{
-    gap: 12px !important;
-    background: transparent !important;
-}}
-
-/* Shape into Pills (Breaks the segmented look) */
-div.element-container:has(.dispatch-tabs-hook) + div.element-container [data-baseweb="tab"],
-div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab"] {{
-    background-color: #ffffff !important;
-    border-radius: 30px !important;
-    border-top-left-radius: 30px !important;
-    border-bottom-left-radius: 30px !important;
-    border-top-right-radius: 30px !important;
-    border-bottom-right-radius: 30px !important;
-    margin: 0 !important;
-    padding: 8px 18px !important;
-    border: 2px solid transparent !important;
-    font-size: 13px !important;
-}}
-
-/* Hide the grey slider */
-div.element-container:has(.dispatch-tabs-hook) + div.element-container [data-baseweb="tab-highlight"],
-div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab-highlight"] {{
-    display: none !important;
-}}
-
-/* Colors - Left Side (Ready / Flagged) */
-div.element-container:has(.dispatch-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(1) {{ border-color: #22c55e !important; color: #064e3b !important; background-color: #f0fdf4 !important; }}
-div.element-container:has(.dispatch-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(2) {{ border-color: #ef4444 !important; color: #7f1d1d !important; background-color: #fef2f2 !important; }}
-
-/* Colors - Right Side (Sent / Accepted / Declined) */
-div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(1) {{ border-color: #3b82f6 !important; color: #1e3a8a !important; background-color: #f0f7ff !important; }}
-div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(2) {{ border-color: #22c55e !important; color: #064e3b !important; background-color: #f0fdf4 !important; }}
-div.element-container:has(.awaiting-tabs-hook) + div.element-container [data-baseweb="tab"]:nth-of-type(3) {{ border-color: #ef4444 !important; color: #7f1d1d !important; background-color: #fef2f2 !important; }}
-
-/* Active Glow */
-div.element-container:has(.dispatch-tabs-hook) + div.element-container [aria-selected="true"],
-div.element-container:has(.awaiting-tabs-hook) + div.element-container [aria-selected="true"] {{
-    transform: translateY(-2px) !important;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.08) !important;
-}}
+</style>
+""", unsafe_allow_html=True)
 
 def background_sheet_move(cluster_hash, payload_json):
     try:
         # This runs safely in a separate invisible thread
-        requests.post(GAS_WEB_APP_URL, json={{
+        requests.post(GAS_WEB_APP_URL, json={
             "action": "revokeRoute", 
             "cluster_hash": cluster_hash,
             "payload": payload_json
-        }})
+        })
     except:
         pass
 
@@ -447,11 +385,6 @@ def instant_revoke_handler(cluster_hash, ic_name, payload_json):
     
     # 4. Trigger the safe Background Thread (No more crashing!)
     threading.Thread(target=background_sheet_move, args=(cluster_hash, payload_json)).start()
-
-</style>
-""", unsafe_allow_html=True)
-
-def background_sheet_move(cluster_hash, payload_json):
 # --- UTILITIES ---
 def haversine(lat1, lon1, lat2, lon2):
     R = 3958.8
@@ -830,7 +763,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         if curr_rate >= 25.0: reasons.append(f"High Rate (${curr_rate})")
         if ic['d'] > 60: reasons.append(f"Distance ({round(ic['d'],1)}mi)")
         if cluster['status'] == 'Flagged': reasons.append("Flagged Route")
-        st.markdown(f"""<div style="background-color:#fef2f2; border:1px solid #ef4444; padding:10px; border-radius:8px; margin-bottom:15px;"><span style="color:#b91c1c; font-weight:800;">&#128274; ACTION REQUIRED:</span> <span style="color:#7f1d1d;">{" & ".join(reasons)}</span></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="background-color:#fef2f2; border:1px solid #ef4444; padding:10px; border-radius:8px; margin-bottom:15px;"><span style="color:#b91c1c; font-weight:800;">🔒 ACTION REQUIRED:</span> <span style="color:#7f1d1d;">{" & ".join(reasons)}</span></div>""", unsafe_allow_html=True)
         is_unlocked = st.checkbox("Authorize Premium Rate / Distance", key=f"lock_{cluster_hash}")
 
     with col_b:
