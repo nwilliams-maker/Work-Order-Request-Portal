@@ -791,8 +791,6 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         f"📋 Work Order: {wo_val}\n"
         f"📅 Due Date: {due.strftime('%A, %b %d, %Y')}\n"
         f"💰 Estimated Compensation: ${final_pay:.2f}\n"
-        f"🛠️ Kiosk Installs: {total_installs}\n\n"
-        f"{install_warning}"
         f"--- Route Preview ---\n"
         f"{stops_text}\n"
         f"To view the complete route details—including total stops, estimated mileage, and time—please click the secure link below to access your Route Summary.\n\n"
