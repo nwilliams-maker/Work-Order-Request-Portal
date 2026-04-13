@@ -335,27 +335,6 @@ div.refresh-btn-container > div > button,
 </style>
 """, unsafe_allow_html=True)
 
-def instant_revoke_handler(cluster_hash, ic_name, payload_json):
-    # 1. Move the card locally (INSTANT)
-    st.session_state[f"reverted_{cluster_hash}"] = True
-    st.session_state[f"route_state_{cluster_hash}"] = "ready"
-    
-    # 2. Update History
-    hist = st.session_state.get(f"history_{cluster_hash}", [])
-    hist.append(f"{ic_name} ({datetime.now().strftime('%m/%d')} - Revoked)")
-    st.session_state[f"history_{cluster_hash}"] = hist
-    
-    # 3. Background Google Sheet Move (No waiting for response)
-    try:
-        # We send a 'revoke' action to your GAS App to move the row
-        requests.post(GAS_WEB_APP_URL, json={
-            "action": "revokeRoute", 
-            "cluster_hash": cluster_hash,
-            "payload": payload_json
-        }, timeout=0.1) # Ultra-short timeout so we don't wait for the sheet to finish
-    except:
-        pass
-
 # --- UTILITIES ---
 def haversine(lat1, lon1, lat2, lon2):
     R = 3958.8
@@ -903,6 +882,15 @@ def run_pod_tab(pod_name):
             c['contractor_name'] = local_contractor
             c['route_ts'] = local_ts
         
+        # If reverted, it completely bypasses the Sent/Accepted/Declined checks
+        if route_state == "email_sent" and not is_reverted:
+            sent.append(c)
+        elif route_state == "link_generated" and not is_reverted:
+            orig = st.session_state.get(f"orig_status_{cluster_hash}")
+            if orig == "declined":
+                declined.append(c)
+            else:
+                ready.append(c)
         # --- NEW PRIORITY: LIVE DATABASE OVERRIDES LOCAL STATE ---
         if sheet_match and not is_reverted:
             raw_status = sheet_match.get('status')
@@ -1094,21 +1082,20 @@ def run_pod_tab(pod_name):
                         render_dispatch(i+500, c, pod_name, is_sent=True)
                         
                 with btn_col:
+                    # Hidden hook to pull the button left and square off its left side
                     st.markdown("<div class='flush-hook' style='display:none;'></div>", unsafe_allow_html=True)
-                    
-                    # Prepare the data for the background move
-                    # This recreates the payload used when the route was originally sent
-                    task_ids = [str(t['id']).strip() for t in c['data']]
-                    cluster_hash = hashlib.md5("".join(sorted(task_ids)).encode()).hexdigest()
-                    
-                    # This button triggers the function above PRE-run
-                    st.button(
-                        "↩️ Revoke", 
-                        key=f"instant_rev_{cluster_hash}", 
-                        on_click=instant_revoke_handler,
-                        args=(cluster_hash, ic_name, c), # Passing data to the handler
-                        use_container_width=True
-                    )
+                    if st.button("↩️ Revoke", key=f"quick_rev_{cluster_hash}", help="Pull this route back to Dispatch", use_container_width=True):
+                        # Log the previous contractor
+                        hist = st.session_state.get(f"history_{cluster_hash}", [])
+                        hist.append(f"{ic_name} ({datetime.now().strftime('%m/%d')})")
+                        st.session_state[f"history_{cluster_hash}"] = hist
+                        
+                        # Flag as reverted and destroy the link
+                        st.session_state[f"reverted_{cluster_hash}"] = True
+                        sync_key = f"sync_{cluster_hash}"
+                        if sync_key in st.session_state:
+                            del st.session_state[sync_key]
+                        st.rerun()
         with t_acc:
             if not accepted and not pod_ghosts: st.info("Waiting for portal acceptances...")
             
@@ -1264,6 +1251,12 @@ with tabs[0]:
                     route_state = st.session_state.get(f"route_state_{cluster_hash}")
                     is_reverted = st.session_state.get(f"reverted_{cluster_hash}", False)
                     
+                    if route_state == "email_sent" and not is_reverted:
+                        sent.append(c)
+                    elif route_state == "link_generated" and not is_reverted:
+                        orig = st.session_state.get(f"orig_status_{cluster_hash}")
+                        if orig == "declined":
+                            declined.append(c)
                     # --- NEW PRIORITY: LIVE DATABASE OVERRIDES LOCAL STATE ---
                     if sheet_match and not is_reverted:
                         raw_status = sheet_match.get('status')
