@@ -775,7 +775,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
     stops_text = ""
     for i, stop in enumerate(preview_stops, start=1):
         full_addr = stop.get('full', 'Unknown Address')
-        stops_text += f"📍 Stop {i}: {full_addr}\n"
+        stops_text += f"Stop {i}: {full_addr}\n"
 
     # Calculate total kiosk installs across the whole route
     total_installs = sum(metrics['inst'] for metrics in stop_metrics.values())
@@ -788,17 +788,14 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
     sig_preview = (
         f"Hello {ic['Name']},\n\n"
         f"We have a new route available for you to review.\n\n"
-        f"📋 Work Order: {wo_val}\n"
-        f"📅 Due Date: {due.strftime('%A, %b %d, %Y')}\n"
-        f"💰 Estimated Compensation: ${final_pay:.2f}\n"
+        f"Work Order: {wo_val}\n"
+        f"Due Date: {due.strftime('%A, %b %d, %Y')}\n"
+        f"Estimated Compensation: ${final_pay:.2f}\n"
         f"--- Route Preview ---\n"
         f"{stops_text}\n"
         f"To view the complete route details—including total stops, estimated mileage, and time—please click the secure link below to access your Route Summary.\n\n"
         f"⚠️ ACTION REQUIRED:\n"
-        f"You must confirm by selecting 'Accept' or 'Decline' directly through the portal link. Your response updates our dispatch board in real-time so we can finalize the schedule.\n\n"
-        f"✅ Auto-Assignment:\n"
-        f"Once you click 'Accept', all tasks will be automatically assigned to your OnFleet app!\n\n"
-        f"👉 Review & Respond Here:\n"
+        f"You must confirm by selecting 'Accept' or 'Decline' directly through the portal link below. Your response updates our dispatch board in real-time so we can finalize and assign the route.\n\n"
         f"{PORTAL_BASE_URL}?route={link_id}&v2=true"
     )
     
