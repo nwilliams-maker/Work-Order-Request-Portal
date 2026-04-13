@@ -203,18 +203,6 @@ button[kind="primary"] {{
     transition: all 0.2s ease !important;
 }}
 
-button[kind="secondary"] {{
-    background-color: #ffffff !important;
-    color: {TB_PURPLE} !important;
-    border: 2px solid {TB_PURPLE} !important;
-    height: 42px !important;
-    font-size: 0.9rem !important;
-    font-weight: 800 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
-    transition: all 0.2s ease !important;
-}}
-
 /* EXPANDER & LAYOUT TIGHTENING */
 div[data-testid="stColumn"]:has(.flush-hook) button[kind="secondary"] {{
     margin-left: -1rem !important;
@@ -1040,7 +1028,7 @@ def run_pod_tab(pod_name):
         # ==========================================
         # SECTION 1: DISPATCH (LEFT SIDE - CENTERED)
         # ==========================================
-        st.markdown(f"<div style='font-size: 1.5rem; font-weight: 800; color: #90EE90; margin-bottom: 5px; text-align: center;'>🚀 Dispatch</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size: 1.5rem; font-weight: 800; color: {TB_PURPLE}; margin-bottom: 5px; text-align: center;'>🚀 Dispatch</div>", unsafe_allow_html=True)
         t_ready, t_flagged = st.tabs(["📥 Ready", "⚠️ Flagged"])
 
         with t_ready:
