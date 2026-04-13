@@ -1227,7 +1227,8 @@
                     const dispatcherEmail = document.getElementById('d_email').value;
                     let notesText = d.notes ? `\n- Special Instructions: ${d.notes}` : "";
                     
-                    const b = `Dear ${d.icn},\n\nRoute Summary:\n- Due Date: ${emailDate}${notesText}\n- Locations: ${d.lCnt}\n- Tasks: ${d.tCnt}\n- Kiosk Installs: ${d.kCnt}\n- Digital Services: ${d.dCnt}\n- Est. Drive Time: ${d.time}\n- Mileage: ${d.mi} Miles\n- Compensation: $${d.comp}\n\nReview Link: ${tinyLink}\n\nSent by: ${dispatcherEmail}`;
+                    const b = `Dear ${d.icn},\n\nRoute Summary:\n- Due Date: ${emailDate}${notesText}\n- Locations: ${d.lCnt}\n- Tasks: ${d.tCnt}\n- Kiosk Installs: ${d.kCnt}\n- Digital Services: ${d.dCnt}\n- Est. Drive Time: ${d.time}\n- Mileage: ${d.mi} Miles\n- Compensation: $${d.comp}\n\n ⚠️ ACTION REQUIRED:
+You must confirm by selecting 'Accept' or 'Decline' directly through the portal link. Your response updates our dispatch board in real-time so we can finalize the schedule.: ${tinyLink}\n\nSent by: ${dispatcherEmail}`;
                     
                     window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(d.ice)}&su=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`, '_blank');
                     
