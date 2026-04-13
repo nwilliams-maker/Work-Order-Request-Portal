@@ -275,7 +275,6 @@ div[data-testid="stColumn"]:has(.expander-hook) div[data-testid="stExpander"] {{
 
 /* 3. ALIGN COLUMNS (COLLAPSE HOOKS) */
 div.element-container:has(.dispatch-tabs-hook),
-div.element-container:has(.awaiting-tabs-hook),
 div.element-container:has(.expander-hook),
 div.element-container:has(.flush-hook) {{
     position: absolute !important;
