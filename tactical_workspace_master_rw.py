@@ -720,7 +720,8 @@ def process_pod(pod_name, master_bar=None, pod_idx=0, total_pods=1):
                 "stops": len(set(x['full'] for x in group)), 
                 "city": anc['city'], "state": anc['state'],
                 "status": status, "has_ic": has_ic,
-                "esc_count": sum(1 for x in group if x.get('escalated'))
+                "esc_count": sum(1 for x in group if x.get('escalated')),
+                "is_digital": anc_is_digital
             })
             
         st.session_state[f"clusters_{pod_name}"] = clusters
@@ -773,7 +774,7 @@ def render_dispatch(i, cluster, pod_name, is_sent=False, is_declined=False):
         if metrics['d_ad'] > 0: pill_parts.append(f"⚪ {metrics['d_ad']} Default")
         if metrics['inst'] > 0: pill_parts.append(f"🛠️ {metrics['inst']} Kiosk Install")
         if metrics['remov'] > 0: pill_parts.append(f"🛑 {metrics['remov']} Kiosk Removal")
-        if metrics['digi'] > 0: pill_parts.append(f"📱 {metrics['digi']} Digital Service")
+        if metrics['digi'] > 0: pill_parts.append(f"🔌 {metrics['digi']} Digital Service")
         if metrics['oth'] > 0: pill_parts.append(f"📦 {metrics['oth']} Other")
         pill_str = " | ".join(pill_parts)
         loc_pills[addr] = f"({metrics['t_count']} Tasks) {pill_str}"
@@ -1171,7 +1172,8 @@ def run_pod_tab(pod_name):
                         if est_rate >= 25.0 or closest_ic['d'] > 60: badges = " 🔒" + badges
 
                 esc_pill = f"  [ ⭐ {c.get('esc_count', 0)} ]" if c.get('esc_count', 0) > 0 else ""
-                with st.expander(f"{badges} 🟢 {c['city']}, {c['state']} | {c['stops']} Stops{esc_pill}"): 
+                digi_pill = "  [ 🔌 Digital ]" if c.get('is_digital') else ""
+                with st.expander(f"{badges} 🟢 {c['city']}, {c['state']} | {c['stops']} Stops{digi_pill}{esc_pill}"):
                     render_dispatch(i, c, pod_name)
                     
         with t_flagged:
