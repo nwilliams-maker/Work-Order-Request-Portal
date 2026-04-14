@@ -642,11 +642,25 @@ def process_pod(pod_name, master_bar=None, pod_idx=0, total_pods=1):
             update_prog(rel_prog, f"🗺️ Routing {len(pool)} remaining tasks...")
             
             anc = pool.pop(0)
+            
+            # --- NEW: Strict Digital Separation ---
+            # Check if the starting anchor task is digital
+            anc_tt = str(anc.get('task_type', '')).lower()
+            anc_is_digital = 'digital' in anc_tt or 'service' in anc_tt
+            
             candidates = []; rem = []
             for t in pool:
-                d = haversine(anc['lat'], anc['lon'], t['lat'], t['lon'])
-                if d <= 50: candidates.append((d, t))
-                else: rem.append(t)
+                t_tt = str(t.get('task_type', '')).lower()
+                t_is_digital = 'digital' in t_tt or 'service' in t_tt
+                
+                # ONLY group if they are BOTH digital, or BOTH standard
+                if anc_is_digital == t_is_digital:
+                    d = haversine(anc['lat'], anc['lon'], t['lat'], t['lon'])
+                    if d <= 50: candidates.append((d, t))
+                    else: rem.append(t)
+                else:
+                    # Types don't match; skip and save this task for another route
+                    rem.append(t)
             
             candidates.sort(key=lambda x: x[0])
             
